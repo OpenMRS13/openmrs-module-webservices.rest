@@ -19,8 +19,7 @@ jobs:
       - name: Deploy naar Test server
         run: |
           echo "Deployen naar Test..."
-          # GitHub vult dit automatisch in met de Test-waarde:
-          echo "Verbinden met database: ${{ secrets.DATABASE_URL }}" 
+          # GitHub vult dit automatisch in met de Test-waarde: "
 
   # --- DEPLOY NAAR PRODUCTIE ---
   deploy_prod:
@@ -34,5 +33,6 @@ jobs:
       - name: Deploy naar Productie server
         run: |
           echo "Deployen naar Productie..."
-          # GitHub vult dit automatisch in met de Productie-waarde:
-          echo "Verbinden met database: ${{ secrets.DATABASE_URL }}"
+          # # GitHub vult dit automatisch in met de Productie-waarde: "
+
+# test
