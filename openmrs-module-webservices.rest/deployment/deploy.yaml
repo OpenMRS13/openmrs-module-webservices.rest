@@ -3,13 +3,13 @@ name: OTAP-Pipeline
 on:
   push:
     branches:
-      - development
+      - Development
       - main
 
 jobs:
   # --- DEPLOY NAAR TEST ---
   deploy_test:
-    if: github.ref == 'refs/heads/development'
+    if: github.ref == 'refs/heads/Development'
     runs-on: ubuntu-latest
     environment: Testomgeving # <--- GitHub laadt nu automatisch de Test-secrets
     steps:
