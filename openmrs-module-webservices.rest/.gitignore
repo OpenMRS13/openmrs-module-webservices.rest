@@ -26,6 +26,10 @@ local.properties
 .settings/
 .loadpath
 
+# Deployment secrets
+deployment/secrets/*.env
+deployment/secrets/*.local
+
 # External tool builders
 .externalToolBuilders/
 

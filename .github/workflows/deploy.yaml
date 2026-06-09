@@ -1,0 +1,38 @@
+name: OTAP-Pipeline
+
+on:
+  push:
+    branches:
+      - Development
+      - main
+
+jobs:
+  # --- DEPLOY NAAR TEST ---
+  deploy_test:
+    if: github.ref == 'refs/heads/Development'
+    runs-on: ubuntu-latest
+    environment: Testomgeving # <--- GitHub laadt nu automatisch de Test-secrets
+    steps:
+      - name: Code ophalen
+        uses: actions/checkout@v4
+
+      - name: Deploy naar Test server
+        run: |
+          echo "Deployen naar Test..."
+          # GitHub vult dit automatisch in met de Test-waarde: "
+
+  # --- DEPLOY NAAR PRODUCTIE ---
+  deploy_prod:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: Prodcutieomgeving # <--- GitHub laadt nu automatisch de Productie-secrets
+    steps:
+      - name: Code ophalen
+        uses: actions/checkout@v4
+
+      - name: Deploy naar Productie server
+        run: |
+          echo "Deployen naar Productie..."
+          # # GitHub vult dit automatisch in met de Productie-waarde: "
+
+# test
