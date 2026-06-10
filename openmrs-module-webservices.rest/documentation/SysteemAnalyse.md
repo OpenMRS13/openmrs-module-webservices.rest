@@ -82,3 +82,36 @@ De module dient als centrale toegangslaag voor externe applicaties. In klinische
 - Dependency management via Dependabot
 
 De reden dat de score hier *middel-hoog* is komt omdat het in een zorgomgeving belangrijk is dat het systeem draait en niet uitvalt
+
+## 3. Risicocriteria
+
+### 3.1 Scoreschaal
+
+Risico wordt berekend als: **Kans × Impact**
+
+| Score | Kans | Beschrijving |
+|---|---|---|
+| 1 | Zeer laag | Treedt zelden op (< 1x per jaar) |
+| 2 | Laag | Treedt af en toe op (1–2x per jaar) |
+| 3 | Hoog | Treedt regelmatig op (meerdere keren per jaar) |
+| 4 | Zeer hoog | Treedt vrijwel zeker op |
+
+| Score | Impact | Beschrijving |
+|---|---|---|
+| 1 | Zeer laag | Geen merkbare schade |
+| 2 | Laag | Beperkte schade, intern oplosbaar |
+| 3 | Hoog | Aanzienlijke schade, AVG-meldplicht van toepassing |
+| 4 | Zeer hoog | Patiëntveiligheid in gevaar, reputatieschade, juridische gevolgen |
+
+### 3.2 Risicobereidheid en grenswaarden
+
+In een healthcare-omgeving geldt een **lage risicobereidheid** vanwege de AVG-meldplicht en patiëntveiligheid.
+
+| Risiconiveau | Score | Maatregel |
+|---|---|---|
+| Laag | 1–3 | Accepteren, monitoren |
+| Middel | 4–6 | Mitigeren binnen 3 maanden |
+| Hoog | 8–12 | Mitigeren binnen 1 maand |
+| Kritiek | 12–16 | Direct actie vereist |
+
+> **Grenswaarde:** elk risico met score **≥ 8** wordt niet geaccepteerd en vereist een concrete maatregel met eigenaar en deadline.
