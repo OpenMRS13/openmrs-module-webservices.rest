@@ -38,5 +38,5 @@ Volg altijd deze stappen bij het ontwikkelen van nieuwe functionaliteiten of het
 ### Stap 2: Live zetten (Test naar Productie)
 1. Controleer op de Testserver of de nieuwe functionaliteit volledig naar behoren werkt en of er geen bugs zijn ontstaan.
 2. Werkt alles? Open dan een Pull Request van **`Development`** naar **`main`**.
-3. **Branch Protection:** Er is een ruleset aanwezig waarin aangegeven staat dat er bijvoorbeeld geen directe merges/pushes kunnen zijn en dat minstens 1 iemand dit moet goedkeuren. Maar omdat we niet een betaalde versie hebben van GitHub staat dit momenteel niet aan.
+3. **Branch Protection:** Er is een ruleset aanwezig waarin aangegeven staat dat er bijvoorbeeld geen directe merges/pushes kunnen zijn en dat minstens 1 iemand dit moet goedkeuren. Maar omdat we niet een betaalde versie hebben van GitHub staat dit momenteel niet
 4. Zodra de PR naar `main` wordt goedgekeurd en gemerged, triggert GitHub Actions de klus `deploy_prod`. De applicatie wordt nu veilig live gezet met de productiedata.
