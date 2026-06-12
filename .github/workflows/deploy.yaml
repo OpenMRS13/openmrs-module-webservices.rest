@@ -20,7 +20,7 @@ jobs:
         run: mvn clean compile
 
       - name: Snyk SAST (Code Scan)
-        uses: snyk/actions/node@v4
+        uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
@@ -29,7 +29,7 @@ jobs:
         continue-on-error: true
 
       - name: Snyk SCA (Dependency Scan)
-        uses: snyk/actions/node@v4
+        uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
@@ -38,7 +38,7 @@ jobs:
         continue-on-error: true
 
       - name: Generate SBOM
-        uses: snyk/actions/node@v4
+        uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
@@ -46,19 +46,19 @@ jobs:
           args: --format=cyclonedx1.5+json --output-file=sbom.json
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sbom
           path: sbom.json
 
       - name: Upload SAST Sarif
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always() # Zorg ervoor dat deze stap altijd wordt uitgevoerd, zelfs als de Snyk SAST stap faalt
         with:
           sarif_file: snyk-sast.sarif
 
       - name: Upload SCA Sarif
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always() # Zorg ervoor dat deze stap altijd wordt uitgevoerd, zelfs als de Snyk SCA stap faalt
         with:
           sarif_file: snyk-sca.sarif
@@ -81,7 +81,7 @@ jobs:
         run: mvn clean compile
 
       - name: Snyk SAST (Code Scan)
-        uses: snyk/actions/node@v4
+        uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
@@ -90,7 +90,7 @@ jobs:
         continue-on-error: true
 
       - name: Snyk SCA (Dependency Scan)
-        uses: snyk/actions/node@v4
+        uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
@@ -99,7 +99,7 @@ jobs:
         continue-on-error: true
 
       - name: Generate SBOM
-        uses: snyk/actions/node@v4
+        uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
@@ -107,19 +107,19 @@ jobs:
           args: --format=cyclonedx1.5+json --output-file=sbom.json
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: sbom
           path: sbom.json
 
       - name: Upload SAST Sarif
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always() # Zorg ervoor dat deze stap altijd wordt uitgevoerd, zelfs als de Snyk SAST stap faalt
         with:
           sarif_file: snyk-sast.sarif
 
       - name: Upload SCA Sarif
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         if: always() # Zorg ervoor dat deze stap altijd wordt uitgevoerd, zelfs als de Snyk SCA stap faalt
         with:
           sarif_file: snyk-sca.sarif
