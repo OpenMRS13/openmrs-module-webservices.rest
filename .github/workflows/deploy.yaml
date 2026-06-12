@@ -16,6 +16,53 @@ jobs:
       - name: Code ophalen
         uses: actions/checkout@v4
 
+      - name: Build project
+        run: mvn clean compile
+
+      - name: Snyk SAST (Code Scan)
+        uses: snyk/actions/node@v4
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --sarif-file-output=snyk-sast.sarif
+        continue-on-error: true
+
+      - name: Snyk SCA (Dependency Scan)
+        uses: snyk/actions/node@v4
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --sarif-file-output=snyk-sca.sarif
+        continue-on-error: true
+
+      - name: Generate SBOM
+        uses: snyk/actions/node@v4
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: sbom
+          args: --format=cyclonedx1.5+json --output-file=sbom.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.json
+
+      - name: Upload SAST Sarif
+        uses: github/codeql-action/upload-sarif@v2
+        if: always() # Zorg ervoor dat deze stap altijd wordt uitgevoerd, zelfs als de Snyk SAST stap faalt
+        with:
+          sarif_file: snyk-sast.sarif
+
+      - name: Upload SCA Sarif
+        uses: github/codeql-action/upload-sarif@v2
+        if: always() # Zorg ervoor dat deze stap altijd wordt uitgevoerd, zelfs als de Snyk SCA stap faalt
+        with:
+          sarif_file: snyk-sca.sarif
+
       - name: Deploy naar Test server
         run: |
           echo "Deployen naar Test..."
@@ -25,10 +72,62 @@ jobs:
   deploy_prod:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: Prodcutieomgeving # <--- GitHub laadt nu automatisch de Productie-secrets
+    environment: Productieomgeving # <--- GitHub laadt nu automatisch de Productie-secrets
     steps:
       - name: Code ophalen
         uses: actions/checkout@v4
+
+      - name: Build project
+        run: mvn clean compile
+
+      - name: Snyk SAST (Code Scan)
+        uses: snyk/actions/node@v4
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --sarif-file-output=snyk-sast.sarif
+        continue-on-error: true
+
+      - name: Snyk SCA (Dependency Scan)
+        uses: snyk/actions/node@v4
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: test
+          args: --sarif-file-output=snyk-sca.sarif
+        continue-on-error: true
+
+      - name: Generate SBOM
+        uses: snyk/actions/node@v4
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: sbom
+          args: --format=cyclonedx1.5+json --output-file=sbom.json
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: sbom
+          path: sbom.json
+
+      - name: Upload SAST Sarif
+        uses: github/codeql-action/upload-sarif@v2
+        if: always() # Zorg ervoor dat deze stap altijd wordt uitgevoerd, zelfs als de Snyk SAST stap faalt
+        with:
+          sarif_file: snyk-sast.sarif
+
+      - name: Upload SCA Sarif
+        uses: github/codeql-action/upload-sarif@v2
+        if: always() # Zorg ervoor dat deze stap altijd wordt uitgevoerd, zelfs als de Snyk SCA stap faalt
+        with:
+          sarif_file: snyk-sca.sarif
+
+      - name: Snyk Monitor
+        run: snyk monitor
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Deploy naar Productie server
         run: |
