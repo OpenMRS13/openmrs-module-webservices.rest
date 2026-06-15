@@ -34,26 +34,26 @@ jobs:
         run: mvn clean package -DskipTests
         working-directory: openmrs-module-webservices.rest
 
-      # Snyk SAST (Code Scan) - Blokkeert alleen bij High/Critical
+      # Snyk SAST (Code Scan) - GEFIXT: --sarif toegevoegd aan args
       - name: Snyk SAST (Code Scan)
         uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: code test
-          args: --sarif-file-output=snyk-sast.sarif
+          args: --sarif --sarif-file-output=snyk-sast.sarif
           target: openmrs-module-webservices.rest
           severity-threshold: high
         continue-on-error: true
 
-      # Snyk SCA (Dependency Scan) - Blokkeert alleen bij High/Critical
+      # Snyk SCA (Dependency Scan) - GEFIXT: --sarif toegevoegd aan args
       - name: Snyk SCA (Dependency Scan)
         uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          args: --file=pom.xml --sarif-file-output=snyk-sca.sarif
+          args: --file=pom.xml --sarif --sarif-file-output=snyk-sca.sarif
           target: openmrs-module-webservices.rest
           severity-threshold: high
         continue-on-error: true
@@ -116,26 +116,26 @@ jobs:
         run: mvn clean package -DskipTests
         working-directory: openmrs-module-webservices.rest
 
-      # Snyk SAST (Code Scan) - Productie
+      # Snyk SAST (Code Scan) - GEFIXT: --sarif toegevoegd aan args
       - name: Snyk SAST (Code Scan)
         uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: code test
-          args: --sarif-file-output=snyk-sast.sarif
+          args: --sarif --sarif-file-output=snyk-sast.sarif
           target: openmrs-module-webservices.rest
           severity-threshold: high
         continue-on-error: true
 
-      # Snyk SCA (Dependency Scan) - Productie
+      # Snyk SCA (Dependency Scan) - GEFIXT: --sarif toegevoegd aan args
       - name: Snyk SCA (Dependency Scan)
         uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          args: --file=pom.xml --sarif-file-output=snyk-sca.sarif
+          args: --file=pom.xml --sarif --sarif-file-output=snyk-sca.sarif
           target: openmrs-module-webservices.rest
           severity-threshold: high
         continue-on-error: true
