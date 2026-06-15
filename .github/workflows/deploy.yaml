@@ -34,39 +34,32 @@ jobs:
         run: mvn clean package -DskipTests
         working-directory: openmrs-module-webservices.rest
 
-      # Snyk SAST (Code Scan) - GEFIXT: --sarif toegevoegd aan args
+      # Installeer de Snyk CLI handmatig om fouten in de voorgebakken GitHub Action te omzeilen
+      - name: Snyk CLI installeren
+        run: npm install -g snyk
+
+      # Snyk SAST (Code Scan) - Direct uitgevoerd in de juiste map
       - name: Snyk SAST (Code Scan)
-        uses: snyk/actions/maven@v1
+        run: snyk code test --sarif --sarif-file-output=snyk-sast.sarif --severity-threshold=high
+        working-directory: openmrs-module-webservices.rest
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: code test
-          args: --sarif --sarif-file-output=snyk-sast.sarif
-          target: openmrs-module-webservices.rest
-          severity-threshold: high
         continue-on-error: true
 
-      # Snyk SCA (Dependency Scan) - GEFIXT: --sarif toegevoegd aan args
+      # Snyk SCA (Dependency Scan) - Direct uitgevoerd in de juiste map
       - name: Snyk SCA (Dependency Scan)
-        uses: snyk/actions/maven@v1
+        run: snyk test --file=pom.xml --sarif --sarif-file-output=snyk-sca.sarif --severity-threshold=high
+        working-directory: openmrs-module-webservices.rest
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
-          args: --file=pom.xml --sarif --sarif-file-output=snyk-sca.sarif
-          target: openmrs-module-webservices.rest
-          severity-threshold: high
         continue-on-error: true
 
       # Snyk SBOM genereren
       - name: Generate SBOM
-        uses: snyk/actions/maven@v1
+        run: snyk sbom --format=cyclonedx-json --output=sbom.json
+        working-directory: openmrs-module-webservices.rest
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: sbom
-          args: --format=cyclonedx-json --output=sbom.json
-          target: openmrs-module-webservices.rest
 
       # Upload het SBOM bestand naar GitHub
       - name: Upload SBOM artifact
@@ -116,39 +109,31 @@ jobs:
         run: mvn clean package -DskipTests
         working-directory: openmrs-module-webservices.rest
 
-      # Snyk SAST (Code Scan) - GEFIXT: --sarif toegevoegd aan args
+      - name: Snyk CLI installeren
+        run: npm install -g snyk
+
+      # Snyk SAST (Code Scan) - Productie
       - name: Snyk SAST (Code Scan)
-        uses: snyk/actions/maven@v1
+        run: snyk code test --sarif --sarif-file-output=snyk-sast.sarif --severity-threshold=high
+        working-directory: openmrs-module-webservices.rest
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: code test
-          args: --sarif --sarif-file-output=snyk-sast.sarif
-          target: openmrs-module-webservices.rest
-          severity-threshold: high
         continue-on-error: true
 
-      # Snyk SCA (Dependency Scan) - GEFIXT: --sarif toegevoegd aan args
+      # Snyk SCA (Dependency Scan) - Productie
       - name: Snyk SCA (Dependency Scan)
-        uses: snyk/actions/maven@v1
+        run: snyk test --file=pom.xml --sarif --sarif-file-output=snyk-sca.sarif --severity-threshold=high
+        working-directory: openmrs-module-webservices.rest
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: test
-          args: --file=pom.xml --sarif --sarif-file-output=snyk-sca.sarif
-          target: openmrs-module-webservices.rest
-          severity-threshold: high
         continue-on-error: true
 
       # Snyk SBOM genereren - Productie
       - name: Generate SBOM
-        uses: snyk/actions/maven@v1
+        run: snyk sbom --format=cyclonedx-json --output=sbom.json
+        working-directory: openmrs-module-webservices.rest
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: sbom
-          args: --format=cyclonedx-json --output=sbom.json
-          target: openmrs-module-webservices.rest
 
       # Upload het SBOM bestand naar GitHub - Productie
       - name: Upload SBOM artifact
@@ -175,12 +160,10 @@ jobs:
 
       # Snyk Monitor voor productie-dashboard
       - name: Snyk Monitor
-        uses: snyk/actions/maven@v1
+        run: snyk monitor
+        working-directory: openmrs-module-webservices.rest
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          command: monitor
-          target: openmrs-module-webservices.rest
 
       - name: Deploy naar Productie server
         run: |
