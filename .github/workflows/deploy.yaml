@@ -12,6 +12,9 @@ jobs:
     if: github.ref == 'refs/heads/Development'
     runs-on: ubuntu-latest
     environment: Testomgeving # <--- GitHub laadt nu automatisch de Test-secrets
+    defaults:
+      run:
+        working-directory: openmrs-module-webservices.rest
     steps:
       - name: Code ophalen
         uses: actions/checkout@v4
@@ -41,8 +44,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          # GEFIXT: --file=pom.xml toegevoegd zodat het bestand correct wordt gegenereerd
-          args: --file=pom.xml --sarif-file-output=snyk-sca.sarif
+          args: --file=openmrs-module-webservices.rest/pom.xml --sarif-file-output=snyk-sca.sarif
         continue-on-error: true
 
       - name: Generate SBOM
@@ -51,8 +53,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: sbom
-          # GEFIXT: Correcte argumenten voor de Snyk Maven SBOM generator
-          args: --format=cyclonedx-json --output=sbom.json
+          args: --file=openmrs-module-webservices.rest/pom.xml --format=cyclonedx-json --output=sbom.json
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
@@ -83,6 +84,9 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: Productieomgeving # <--- GitHub laadt nu automatisch de Productie-secrets
+    defaults:
+      run:
+        working-directory: openmrs-module-webservices.rest
     steps:
       - name: Code ophalen
         uses: actions/checkout@v4
@@ -112,8 +116,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          # GEFIXT: --file=pom.xml toegevoegd
-          args: --file=pom.xml --sarif-file-output=snyk-sca.sarif
+          args: --file=openmrs-module-webservices.rest/pom.xml --sarif-file-output=snyk-sca.sarif
         continue-on-error: true
 
       - name: Generate SBOM
@@ -122,8 +125,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: sbom
-          # GEFIXT: Correcte argumenten voor de Snyk Maven SBOM generator
-          args: --format=cyclonedx-json --output=sbom.json
+          args: --file=openmrs-module-webservices.rest/pom.xml --format=cyclonedx-json --output=sbom.json
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
@@ -152,6 +154,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: monitor
+          args: --file=openmrs-module-webservices.rest/pom.xml
 
       - name: Deploy naar Productie server
         run: |
