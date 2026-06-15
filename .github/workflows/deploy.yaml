@@ -11,23 +11,20 @@ jobs:
   deploy_test:
     if: github.ref == 'refs/heads/Development'
     runs-on: ubuntu-latest
-    environment: Testomgeving # <--- GitHub laadt nu automatisch de Test-secrets
-    defaults:
-      run:
-        working-directory: openmrs-module-webservices.rest
+    environment: Testomgeving
     steps:
       - name: Code ophalen
         uses: actions/checkout@v4
 
-      # Installeer Java 8 (Essentieel voor Maven & Snyk)
       - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
           java-version: '8'
           distribution: 'temurin'
 
+      # GEFIXT: 'compile' vervangen door 'package -DskipTests' voor multi-module support
       - name: Build project
-        run: mvn clean compile
+        run: mvn clean package -DskipTests
 
       - name: Snyk SAST (Code Scan)
         uses: snyk/actions/maven@v1
@@ -44,7 +41,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          args: --file=openmrs-module-webservices.rest/pom.xml --sarif-file-output=snyk-sca.sarif
+          args: --sarif-file-output=snyk-sca.sarif
         continue-on-error: true
 
       - name: Generate SBOM
@@ -53,7 +50,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: sbom
-          args: --file=openmrs-module-webservices.rest/pom.xml --format=cyclonedx-json --output=sbom.json
+          args: --format=cyclonedx-json --output=sbom.json
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
@@ -66,14 +63,14 @@ jobs:
         if: always() 
         with:
           sarif_file: snyk-sast.sarif
-          category: snyk-code # GEFIXT: Categorie toegevoegd om overschrijven te voorkomen
+          category: snyk-code
 
       - name: Upload SCA Sarif
         uses: github/codeql-action/upload-sarif@v3
         if: always() 
         with:
           sarif_file: snyk-sca.sarif
-          category: snyk-sca # GEFIXT: Categorie toegevoegd om overschrijven te voorkomen
+          category: snyk-sca
 
       - name: Deploy naar Test server
         run: |
@@ -83,23 +80,20 @@ jobs:
   deploy_prod:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: Productieomgeving # <--- GitHub laadt nu automatisch de Productie-secrets
-    defaults:
-      run:
-        working-directory: openmrs-module-webservices.rest
+    environment: Productieomgeving
     steps:
       - name: Code ophalen
         uses: actions/checkout@v4
 
-      # Installeer Java 8 (Essentieel voor Maven & Snyk)
       - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
           java-version: '8'
           distribution: 'temurin'
 
+      # GEFIXT: 'compile' vervangen door 'package -DskipTests' voor multi-module support
       - name: Build project
-        run: mvn clean compile
+        run: mvn clean package -DskipTests
 
       - name: Snyk SAST (Code Scan)
         uses: snyk/actions/maven@v1
@@ -116,7 +110,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: test
-          args: --file=openmrs-module-webservices.rest/pom.xml --sarif-file-output=snyk-sca.sarif
+          args: --sarif-file-output=snyk-sca.sarif
         continue-on-error: true
 
       - name: Generate SBOM
@@ -125,7 +119,7 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: sbom
-          args: --file=openmrs-module-webservices.rest/pom.xml --format=cyclonedx-json --output=sbom.json
+          args: --format=cyclonedx-json --output=sbom.json
 
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
@@ -147,14 +141,12 @@ jobs:
           sarif_file: snyk-sca.sarif
           category: snyk-sca
 
-      # GEFIXT: Snyk Monitor aangepast naar de officiële actie-syntax in plaats van 'run: snyk monitor'
       - name: Snyk Monitor
         uses: snyk/actions/maven@v1
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           command: monitor
-          args: --file=openmrs-module-webservices.rest/pom.xml
 
       - name: Deploy naar Productie server
         run: |
