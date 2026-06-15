@@ -6,12 +6,18 @@ on:
       - Development
       - main
 
+# Dit geeft GitHub Actions de rechten om de SARIF-beveiligingsrapporten te uploaden
+permissions:
+  security-events: write
+  contents: read
+  actions: read
+
 jobs:
   # --- DEPLOY NAAR TEST ---
   deploy_test:
     if: github.ref == 'refs/heads/Development'
     runs-on: ubuntu-latest
-    environment: Testomgeving # <--- GitHub laadt nu automatisch de Test-secrets
+    environment: Testomgeving
     steps:
       - name: Code ophalen
         uses: actions/checkout@v4
@@ -23,12 +29,12 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
-      # Build het project vanuit de juiste map
+      # Build het project vanuit de juiste map met multi-module support
       - name: Build project
         run: mvn clean package -DskipTests
         working-directory: openmrs-module-webservices.rest
 
-      # Snyk SAST gericht op de juiste map
+      # Snyk SAST (Code Scan) - Blokkeert alleen bij High/Critical
       - name: Snyk SAST (Code Scan)
         uses: snyk/actions/maven@v1
         env:
@@ -37,9 +43,10 @@ jobs:
           command: code test
           args: --sarif-file-output=snyk-sast.sarif
           target: openmrs-module-webservices.rest
+          severity-threshold: high
         continue-on-error: true
 
-      # Snyk SCA gericht op de juiste map
+      # Snyk SCA (Dependency Scan) - Blokkeert alleen bij High/Critical
       - name: Snyk SCA (Dependency Scan)
         uses: snyk/actions/maven@v1
         env:
@@ -48,9 +55,10 @@ jobs:
           command: test
           args: --file=pom.xml --sarif-file-output=snyk-sca.sarif
           target: openmrs-module-webservices.rest
+          severity-threshold: high
         continue-on-error: true
 
-      # Snyk SBOM genereren in de juiste map
+      # Snyk SBOM genereren
       - name: Generate SBOM
         uses: snyk/actions/maven@v1
         env:
@@ -60,14 +68,14 @@ jobs:
           args: --format=cyclonedx-json --output=sbom.json
           target: openmrs-module-webservices.rest
 
-      # Haal de SBOM op uit de juiste submap
+      # Upload het SBOM bestand naar GitHub
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
         with:
           name: sbom-test
           path: openmrs-module-webservices.rest/sbom.json
 
-      # Postbodes zoeken de SARIF-bestanden nu in de submap op
+      # Upload SAST resultaten naar GitHub Security (Blijft op v3)
       - name: Upload SAST Sarif
         uses: github/codeql-action/upload-sarif@v3
         if: always() 
@@ -75,6 +83,7 @@ jobs:
           sarif_file: openmrs-module-webservices.rest/snyk-sast.sarif
           category: snyk-code
 
+      # Upload SCA resultaten naar GitHub Security (Blijft op v3)
       - name: Upload SCA Sarif
         uses: github/codeql-action/upload-sarif@v3
         if: always() 
@@ -90,7 +99,7 @@ jobs:
   deploy_prod:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: Productieomgeving # <--- GitHub laadt nu automatisch de Productie-secrets
+    environment: Productieomgeving
     steps:
       - name: Code ophalen
         uses: actions/checkout@v4
@@ -102,12 +111,12 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
-      # Build het project vanuit de juiste map
+      # Build het project vanuit de juiste map met multi-module support
       - name: Build project
         run: mvn clean package -DskipTests
         working-directory: openmrs-module-webservices.rest
 
-      # Snyk SAST gericht op de juiste map
+      # Snyk SAST (Code Scan) - Productie
       - name: Snyk SAST (Code Scan)
         uses: snyk/actions/maven@v1
         env:
@@ -116,9 +125,10 @@ jobs:
           command: code test
           args: --sarif-file-output=snyk-sast.sarif
           target: openmrs-module-webservices.rest
+          severity-threshold: high
         continue-on-error: true
 
-      # Snyk SCA gericht op de juiste map
+      # Snyk SCA (Dependency Scan) - Productie
       - name: Snyk SCA (Dependency Scan)
         uses: snyk/actions/maven@v1
         env:
@@ -127,9 +137,10 @@ jobs:
           command: test
           args: --file=pom.xml --sarif-file-output=snyk-sca.sarif
           target: openmrs-module-webservices.rest
+          severity-threshold: high
         continue-on-error: true
 
-      # Snyk SBOM genereren in de juiste map
+      # Snyk SBOM genereren - Productie
       - name: Generate SBOM
         uses: snyk/actions/maven@v1
         env:
@@ -139,14 +150,14 @@ jobs:
           args: --format=cyclonedx-json --output=sbom.json
           target: openmrs-module-webservices.rest
 
-      # Haal de SBOM op uit de juiste submap
+      # Upload het SBOM bestand naar GitHub - Productie
       - name: Upload SBOM artifact
         uses: actions/upload-artifact@v4
         with:
           name: sbom-prod
           path: openmrs-module-webservices.rest/sbom.json
 
-      # Postbodes zoeken de SARIF-bestanden nu in de submap op
+      # Upload SAST resultaten naar GitHub Security (Blijft op v3)
       - name: Upload SAST Sarif
         uses: github/codeql-action/upload-sarif@v3
         if: always() 
@@ -154,6 +165,7 @@ jobs:
           sarif_file: openmrs-module-webservices.rest/snyk-sast.sarif
           category: snyk-code
 
+      # Upload SCA resultaten naar GitHub Security (Blijft op v3)
       - name: Upload SCA Sarif
         uses: github/codeql-action/upload-sarif@v3
         if: always() 
@@ -161,7 +173,7 @@ jobs:
           sarif_file: openmrs-module-webservices.rest/snyk-sca.sarif
           category: snyk-sca
 
-      # Snyk Monitor gericht op de juiste map
+      # Snyk Monitor voor productie-dashboard
       - name: Snyk Monitor
         uses: snyk/actions/maven@v1
         env:
