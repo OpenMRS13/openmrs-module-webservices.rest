@@ -15,7 +15,7 @@ permissions:
 jobs:
   # --- DEPLOY NAAR TEST ---
   deploy_test:
-    if: github.ref == 'refs/heads/Development' or github.ref == 'refs/heads/origin/pipeline-test'
+    if: github.ref == 'refs/heads/Development' || github.ref == 'refs/heads/origin/pipeline-test'
     runs-on: ubuntu-latest
     environment: Testomgeving
     steps:
