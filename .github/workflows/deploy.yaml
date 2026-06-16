@@ -5,6 +5,7 @@ on:
     branches:
       - Development
       - main
+      - origin/pipeline-test
 
 # Dit geeft GitHub Actions de rechten om de SARIF-beveiligingsrapporten te uploaden
 permissions:
