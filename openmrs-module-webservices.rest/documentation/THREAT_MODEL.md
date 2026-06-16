@@ -2,20 +2,101 @@
 
 **Methodiek:** STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege)
 **Object van onderzoek:** module `webservices.rest` 3.2.0 (`omod`, `omod-common`) + meegeleverde deployment-/CI-configuratie
-**Norm-koppeling:** NEN 7510:2024-2 (beheersmaatregelen; nummering conform NEN-EN-ISO/IEC 27001:2023 Bijlage A)
-**Datum:** 14-06-2026
+**Norm-koppeling:** NEN 7510-2:2024 (beheersmaatregelen; control-nummering conform NEN-EN-ISO/IEC 27001:2023 Bijlage A — zelfde nummering als de gap-analyse)
+**Datum:** 14-06-2026 (herzien 16-06-2026)
 **Status:** concept — geschikt als auditbijlage
-**Relatie tot ander werk:** vult de eerdere gap-analyse (`documentation/gap-analyse/security.md`, bevindingen S-1 t/m S-10) aan met een STRIDE-lens, dreigingsactoren en een gekwantificeerd risicoregister.
+**Relatie tot ander werk:** vult de gap-analyse (`documentation/gap-analyse/security.md`, bevindingen S-1 t/m S-10) aan met een STRIDE-lens, dreigingsactoren en een gekwantificeerd risicoregister. De gap-analyse beoordeelt sinds de herziening van 16-06-2026 gericht **drie** beheersmaatregelen — **A.5.15 Toegangsbeveiliging**, **A.8.28 Veilig coderen** en **A.8.8 Beheer van technische kwetsbaarheden**. Dit document gebruikt dezelfde control-nummering (Bijlage A, met `A.`-prefix) en maakt de koppeling met die drie controls expliciet in STAP 4.1.
 
 > **Aannames & afbakening**
 > 1. Statische codereview; geen dynamische test (pentest/DAST) uitgevoerd.
-> 2. Drie endpoints bevatten expliciete commentaarregels die op bewust ingebrachte zwakheden wijzen (`SessionController1_9.java:168`, `SwaggerDocController.java:24`, `SettingsFormController.java:44`). Deze worden als reële bevindingen behandeld.
+> 2. Drie endpoints wijzen op bewust ingebrachte zwakheden: `SessionController1_9.java:168` en `SettingsFormController.java:44` bevatten expliciete `NOTE`-commentaarregels; `SwaggerDocController.java:24-28` (`debug`) is een evidente XSS-injectie zonder comment. Deze worden als reële bevindingen behandeld.
 > 3. Veel zware dependencies komen transitief via `openmrs-api`/`openmrs-web` 2.8.3 (`provided`); mitigatie ligt deels upstream.
 > 4. Kans/impact-scores zijn kwalitatief (1–5), gebaseerd op exploiteerbaarheid en PHI-gevoeligheid; er is geen CVSS berekend.
 
+## STAP 1 — Systeemdiagrammen (C4)
+
+### C4 Level 1 — Systeemcontext
+
+```mermaid
+C4Context
+    title Systeemcontext — OpenMRS webservices.rest
+
+    Person(zorgverlener, "Zorgverlener", "Raadpleegt en muteert patiëntdata via REST-API of browser")
+    Person(beheerder, "Systeembeheerder", "Beheert OpenMRS-configuratie en module-instellingen")
+    Person_Ext(aanvaller, "Aanvaller", "Externe dreigingsactor (zie dreigingsregister)")
+
+    System_Boundary(omrs, "OpenMRS-installatie") {
+        System(restmodule, "webservices.rest", "Biedt een REST- en legacy-webinterface op OpenMRS-kernfunctionaliteit")
+    }
+
+    System_Ext(fhirclient, "Externe REST-client", "Browser, mobiele app of FHIR-koppeling")
+    System_Ext(hl7, "Extern zorgsysteem", "HIS/EPD via HL7 of FHIR")
+
+    Rel(zorgverlener, restmodule, "HTTP/REST (JSON)")
+    Rel(beheerder, restmodule, "HTTP — /settings.form, /session")
+    Rel(fhirclient, restmodule, "HTTPS/REST")
+    Rel(hl7, restmodule, "FHIR/REST")
+    Rel(aanvaller, restmodule, "Ongeauthenticeerde aanvallen (T-01, T-02, T-03)")
+```
+
+### C4 Level 2 — Containerdiagram
+
+```mermaid
+C4Container
+    title Containerdiagram — OpenMRS webservices.rest
+
+    Person(gebruiker, "Zorgverlener / Beheerder", "")
+    Person_Ext(aanvaller, "Aanvaller", "")
+
+    System_Boundary(docker, "Docker Compose (OTAP)") {
+        Container(tomcat, "Tomcat + OpenMRS WAR", "Java / Tomcat 9", "Host voor openmrs-core + webservices.rest omod")
+        ContainerDb(mariadb, "MariaDB", "MariaDB 10.x", "Patiëntdata, configuratie, global properties")
+    }
+
+    System_Boundary(ci, "CI/CD — GitHub Actions") {
+        Container(pipeline, "GitHub Actions", "CodeQL, Snyk, SBOM", "Statische analyse, dependency-scan, artefact-publicatie")
+    }
+
+    System_Ext(browser, "Browser / REST-client", "HTTP(S)")
+
+    Rel(gebruiker, browser, "Gebruikt")
+    Rel(browser, tomcat, "HTTP :8080 — geen TLS (T-04)", "HTTP")
+    Rel(aanvaller, tomcat, "Aanval via onbeveiligde endpoints")
+    Rel(tomcat, mariadb, "JDBC — root-credentials (T-05)", "TCP 3306")
+    Rel(pipeline, tomcat, "Deploy omod-artefact")
+```
+
+### C4 Level 3 — Componentdiagram
+
+```mermaid
+C4Component
+    title Componentdiagram — webservices.rest omod
+
+    Container_Boundary(omod, "webservices.rest omod") {
+        Component(restfilter, "REST AuthFilter", "Java / Spring", "Controleert authenticatie + authz op /ws/rest/**")
+        Component(session, "SessionController1_9", "Java / Spring MVC", "/session/diag — privilege-lek (T-02)")
+        Component(settings, "SettingsFormController", "Java / Spring MVC", "/settings.form/search — geen authz (T-01)")
+        Component(swagger, "SwaggerDocController", "Java / Spring MVC", "/apiDocs/debug — reflected XSS (T-03)")
+        Component(resources, "Resource Handlers", "Java / Spring MVC", "CRUD-endpoints: Patient, Encounter, Obs, enz.")
+        Component(context, "OpenMRS Context", "Java", "Brug naar openmrs-core: authenticatie, DB-toegang, GP-beheer")
+    }
+
+    System_Ext(browser, "Browser / REST-client", "")
+    ContainerDb(mariadb, "MariaDB", "MariaDB", "")
+
+    Rel(browser, restfilter, "Alle inkomende HTTP-requests")
+    Rel(restfilter, session, "Doorgestuurd (of omzeild bij /diag)")
+    Rel(restfilter, settings, "Omzeild — geen authz-check (T-01)")
+    Rel(restfilter, swagger, "Omzeild — buiten filter (T-03)")
+    Rel(restfilter, resources, "Geautoriseerde REST-calls")
+    Rel(session, context, "Leest sessie/rollen")
+    Rel(settings, context, "Leest Global Properties")
+    Rel(resources, context, "CRUD via OpenMRS API")
+    Rel(context, mariadb, "JDBC")
+```
 ---
 
-## STAP 1 — Systeembegrip (samenvatting)
+## STAP 2 — Systeembegrip (samenvatting)
 
 `webservices.rest` ontsluit de OpenMRS-kern-API als REST-webservices. De module is een dunne HTTP↔service-vertaallaag; business-logica en datatoegang zitten upstream in `openmrs-api`/`openmrs-web` 2.8.3 (`provided` scope).
 
@@ -32,7 +113,7 @@
 
 ---
 
-## STAP 2 — Asset-identificatie
+## STAP 3 — Asset-identificatie
 
 CIA-classificatie: **C** = Confidentiality, **I** = Integrity, **A** = Availability. De gemarkeerde letter is het meest kritisch voor dat asset.
 
@@ -49,7 +130,7 @@ CIA-classificatie: **C** = Confidentiality, **I** = Integrity, **A** = Availabil
 
 ---
 
-## STAP 3 — STRIDE-analyse per component
+## STAP 4 — STRIDE-analyse per component
 
 Alleen realistische dreigingen voor déze code zijn opgenomen, met codeverwijzing, dreigingsactor en motief.
 
@@ -83,7 +164,7 @@ Alleen realistische dreigingen voor déze code zijn opgenomen, met codeverwijzin
 ### Component 3 — `SwaggerDocController` (`/apiDocs/debug`)
 
 - **(T) Tampering — Reflected XSS via `tag`-parameter.**
-  `SwaggerDocController.java:24-28`: `return "<h1>Debugging Tag: " + tag + "</h1>"` zonder output-encoding, zonder `Content-Type`-beperking, zonder authz, buiten de REST-filter. `<script>`-payload wordt in de browser van het slachtoffer uitgevoerd.
+  `SwaggerDocController.java:24-28` (`return "<h1>Debugging Tag: " + tag + "</h1>"`, `:27`): zonder output-encoding, zonder `Content-Type`-beperking, zonder authz, buiten de REST-filter. `<script>`-payload wordt in de browser van het slachtoffer uitgevoerd.
   *Actor:* cybercrimineel — *motief:* sessiediefstal/CSRF-opstap richting een ingelogde beheerder.
 - **(E) Elevation of Privilege — XSS in beheerderscontext.**
   Wordt de payload door een ingelogde admin geopend, dan kan via de actieve sessie geprivilegieerde actie worden uitgevoerd.
@@ -139,7 +220,7 @@ Alleen realistische dreigingen voor déze code zijn opgenomen, met codeverwijzin
 
 ---
 
-## STAP 4 — Risicoregister
+## STAP 5 — Risicoregister
 
 Score = Kans × Impact. **Rood ≥ 15 · Oranje 8–14 · Groen ≤ 7.**
 
@@ -169,33 +250,51 @@ Score = Kans × Impact. **Rood ≥ 15 · Oranje 8–14 · Groen ≤ 7.**
 - **T-05 (15):** Kans 3 — vereist eerst app-compromittering. Impact 5 — volledige DB-root.
 - **T-06 (15):** Kans 3 — exploiteerbaarheid afhankelijk van runtime-blootstelling; deels upstream. Impact 5 — potentieel RCE.
 
+### STAP 5.1 — Koppeling met de drie beoordeelde gap-analyse-controls
+
+De gap-analyse (herziening 16-06-2026) toetst drie controls; alle drie staan daar
+op *voldoet niet*. Onderstaande tabel laat zien welke STRIDE-dreigingen uit dit
+register elk van die controls onderbouwen — de twee documenten beschrijven
+dezelfde zwakheden vanuit een andere lens.
+
+| Gap-analyse-control | Onderbouwende dreigingen (dit register) | Gap-analyse-bevindingen |
+| :--- | :--- | :--- |
+| **A.5.15** Toegangsbeveiliging | T-01, T-02 (+ T-10 ondersteunend) | S-1, S-3 |
+| **A.8.28** Veilig coderen | T-03, T-11, T-14 | S-2, S-3, S-4, S-10 |
+| **A.8.8** Beheer van technische kwetsbaarheden | T-06 (+ T-13 supply chain) | S-7 |
+
+> Dreigingen buiten deze drie controls (o.a. T-04 TLS → A.8.24, T-05 DB-credentials
+> → A.8.2, T-07 Basic-auth → A.8.5) blijven in dit threat model staan omdat een
+> STRIDE-analyse breder is dan de drie getoetste controls; ze vallen alleen buiten
+> de afgebakende compliance-toets van de gap-analyse.
+
 ---
 
-## STAP 5 — Maatregelen voor de top 5 (hoogste score)
+## STAP 6 — Maatregelen voor de top 5 (hoogste score)
 
-Per dreiging: een **preventieve** maatregel (verlaagt kans) en een **detectieve/correctieve** maatregel (verlaagt impact), gekoppeld aan NEN 7510:2024-2-controls.
+Per dreiging: een **preventieve** maatregel (verlaagt kans) en een **detectieve/correctieve** maatregel (verlaagt impact), gekoppeld aan NEN 7510-2:2024-controls (Bijlage A).
 
 ### T-01 — Secret-lek via `/settings.form/search` (score 25, 🔴)
-- **Preventief:** Endpoint verwijderen, of `Context.isAuthenticated()` + privilege (`Manage RESTWS`/`GET_GLOBAL_PROPERTIES`) afdwingen; gevoelige waarden **maskeren** en nooit teruggeven; JSON via een serializer i.p.v. concatenatie. → **NEN 8.4 Toegangscontrole**, **8.11 Maskeren van gegevens (NEN 7510:2024-2)**, **8.28 Veilig coderen**.
-- **Detectief/correctief:** Security-logging op elke aanroep van GP-zoek/-uitlezing + alert bij ongeauthenticeerde toegang; secrets uit GP halen en roteren. → **NEN 8.15 Logging**, **8.16 Monitoren van activiteiten**.
+- **Preventief:** Endpoint verwijderen, of `Context.isAuthenticated()` + privilege (`Manage RESTWS`/`GET_GLOBAL_PROPERTIES`) afdwingen; gevoelige waarden **maskeren** en nooit teruggeven; JSON via een serializer i.p.v. concatenatie. → **A.5.15 Toegangsbeveiliging**, **A.8.11 Maskeren van gegevens**, **A.8.28 Veilig coderen**.
+- **Detectief/correctief:** Security-logging op elke aanroep van GP-zoek/-uitlezing + alert bij ongeauthenticeerde toegang; secrets uit GP halen en roteren. → **A.8.15 Logging**, **A.8.16 Monitoren van activiteiten**.
 
 ### T-02 — Rollen/privilege-lek via `/session/diag` (score 20, 🔴)
-- **Preventief:** Diagnostics-endpoint verwijderen; indien nodig achter authenticatie + privilege plaatsen en **nooit** rollen/privileges teruggeven (`SessionController1_9.java:177-179` schrappen). → **NEN 8.4 Toegangscontrole**, **8.3 Beperking toegang tot informatie**.
-- **Detectief/correctief:** Audit-logging van toegang tot sessie-/diagnose-info; anomaliedetectie op ongeauthenticeerde hits. → **NEN 8.15 Logging**, **8.16 Monitoren van activiteiten**.
+- **Preventief:** Diagnostics-endpoint verwijderen; indien nodig achter authenticatie + privilege plaatsen en **nooit** rollen/privileges teruggeven (`SessionController1_9.java:177-179` schrappen). → **A.5.15 Toegangsbeveiliging**, **A.8.3 Beperking toegang tot informatie**.
+- **Detectief/correctief:** Audit-logging van toegang tot sessie-/diagnose-info; anomaliedetectie op ongeauthenticeerde hits. → **A.8.15 Logging**, **A.8.16 Monitoren van activiteiten**.
 
 ### T-03 — Reflected XSS via `/apiDocs/debug` (score 16, 🔴)
-- **Preventief:** Debug-endpoint verwijderen; anders input valideren + **output-encoden** (OWASP Java Encoder, al in stack), `Content-Type` vastzetten en achter authz plaatsen. → **NEN 8.28 Veilig coderen**, **8.26 Toepassingsbeveiligingseisen**.
-- **Detectief/correctief:** `Content-Security-Policy`-header + WAF-/loggingregel op verdachte `tag`-payloads; alert op script-achtige parameters. → **NEN 8.15 Logging**, **8.22 Webfiltering/netwerkbeveiliging**.
+- **Preventief:** Debug-endpoint verwijderen; anders input valideren + **output-encoden** (OWASP Java Encoder, al in stack), `Content-Type` vastzetten en achter authz plaatsen. → **A.8.28 Veilig coderen**, **A.8.26 Toepassingsbeveiligingseisen**.
+- **Detectief/correctief:** `Content-Security-Policy`-header + WAF-/loggingregel op verdachte `tag`-payloads; alert op script-achtige parameters. → **A.8.15 Logging**, **A.8.23 Webfiltering**.
 
 ### T-04 — Geen TLS in productie (score 15, 🔴)
-- **Preventief:** TLS-terminatie via reverse proxy/ingress vóór de container; HTTP→HTTPS-redirect en HSTS; poort 80 niet direct publiceren (`docker-compose.prod.yml:5`). → **NEN 8.24 Gebruik van cryptografie**, **8.22 Netwerkbeveiliging**.
-- **Detectief/correctief:** Monitoring/alert op cleartext-verbindingen en certificaatverloop; periodieke TLS-scan. → **NEN 8.16 Monitoren van activiteiten**, **8.29 Beveiligingstesten**.
+- **Preventief:** TLS-terminatie via reverse proxy/ingress vóór de container; HTTP→HTTPS-redirect en HSTS; poort 80 niet direct publiceren (`docker-compose.prod.yml:5`). → **A.8.24 Gebruik van cryptografie**, **A.8.20 Netwerkbeveiliging**.
+- **Detectief/correctief:** Monitoring/alert op cleartext-verbindingen en certificaatverloop; periodieke TLS-scan. → **A.8.16 Monitoren van activiteiten**, **A.8.29 Beveiligingstesten**.
 
 ### T-05 — DB-root-pw == app-pw (score 15, 🔴)
-- **Preventief:** Apart, least-privilege app-DB-account scheiden van root; sterke, unieke secrets per rol (`docker-compose.prod.yml:21`). → **NEN 8.4 Toegangscontrole**, **8.2 Speciale toegangsrechten**.
-- **Detectief/correctief:** DB-audit op root-/admin-acties + alert; secret-rotatie en credential-scanning in CI. → **NEN 8.15 Logging**, **8.8 Beheer van technische kwetsbaarheden**.
+- **Preventief:** Apart, least-privilege app-DB-account scheiden van root; sterke, unieke secrets per rol (`docker-compose.prod.yml:21`). → **A.5.15 Toegangsbeveiliging**, **A.8.2 Speciale toegangsrechten**.
+- **Detectief/correctief:** DB-audit op root-/admin-acties + alert; secret-rotatie en credential-scanning in CI. → **A.8.15 Logging**, **A.8.8 Beheer van technische kwetsbaarheden**.
 
-> **Vermeldenswaardig net buiten de top 5 — T-06 (EOL-dependencies, score 15):** preventief OWASP Dependency-Check/Trivy in CI + upgradeplan (Struts/Velocity/Jackson 1.x), detectief continue SCA-monitoring en SBOM-diffing. → **NEN 8.8 Beheer van technische kwetsbaarheden**, **8.29 Beveiligingstesten**.
+> **Vermeldenswaardig net buiten de top 5 — T-06 (EOL-dependencies, score 15):** preventief OWASP Dependency-Check/Trivy in CI + upgradeplan (Struts/Velocity/Jackson 1.x), detectief continue SCA-monitoring en SBOM-diffing. → **A.8.8 Beheer van technische kwetsbaarheden**, **A.8.29 Beveiligingstesten**. Dit is één van de drie gericht getoetste gap-analyse-controls (zie STAP 4.1).
 
 ---
 
@@ -204,4 +303,4 @@ Per dreiging: een **preventieve** maatregel (verlaagt kans) en een **detectieve/
 - **6 rode dreigingen** (T-01 t/m T-06) vragen onmiddellijke actie; drie daarvan (T-01/T-02/T-03) zijn direct, ongeauthenticeerd exploiteerbaar en zijn de logische eerste pentest-scenario's.
 - **Quick wins:** de drie ingebrachte endpoints verwijderen/beveiligen sluit T-01, T-02, T-03 én T-11 in één wijziging af.
 - **Structureel:** TLS afdwingen (T-04), credential-scheiding (T-05), SCA in CI (T-06), en een security-/audittrail (T-15, T-02-detectie) opzetten — momenteel ontbreekt aantoonbare audit-logging.
-- **Validatie:** bevestig de top-6 met een geautoriseerde pentest op een test-/acceptatieomgeving (**NEN 8.29 Beveiligingstesten**, **8.34 audittests vooraf afstemmen**).
+- **Validatie:** bevestig de top-6 met een geautoriseerde pentest op een test-/acceptatieomgeving (**A.8.29 Beveiligingstesten**, **A.8.34 audittests vooraf afstemmen**).
