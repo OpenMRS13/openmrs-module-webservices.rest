@@ -13,9 +13,90 @@
 > 3. Veel zware dependencies komen transitief via `openmrs-api`/`openmrs-web` 2.8.3 (`provided`); mitigatie ligt deels upstream.
 > 4. Kans/impact-scores zijn kwalitatief (1–5), gebaseerd op exploiteerbaarheid en PHI-gevoeligheid; er is geen CVSS berekend.
 
+## STAP 1 — Systeemdiagrammen (C4)
+
+### C4 Level 1 — Systeemcontext
+
+```mermaid
+C4Context
+    title Systeemcontext — OpenMRS webservices.rest
+
+    Person(zorgverlener, "Zorgverlener", "Raadpleegt en muteert patiëntdata via REST-API of browser")
+    Person(beheerder, "Systeembeheerder", "Beheert OpenMRS-configuratie en module-instellingen")
+    Person_Ext(aanvaller, "Aanvaller", "Externe dreigingsactor (zie dreigingsregister)")
+
+    System_Boundary(omrs, "OpenMRS-installatie") {
+        System(restmodule, "webservices.rest", "Biedt een REST- en legacy-webinterface op OpenMRS-kernfunctionaliteit")
+    }
+
+    System_Ext(fhirclient, "Externe REST-client", "Browser, mobiele app of FHIR-koppeling")
+    System_Ext(hl7, "Extern zorgsysteem", "HIS/EPD via HL7 of FHIR")
+
+    Rel(zorgverlener, restmodule, "HTTP/REST (JSON)")
+    Rel(beheerder, restmodule, "HTTP — /settings.form, /session")
+    Rel(fhirclient, restmodule, "HTTPS/REST")
+    Rel(hl7, restmodule, "FHIR/REST")
+    Rel(aanvaller, restmodule, "Ongeauthenticeerde aanvallen (T-01, T-02, T-03)")
+```
+
+### C4 Level 2 — Containerdiagram
+
+```mermaid
+C4Container
+    title Containerdiagram — OpenMRS webservices.rest
+
+    Person(gebruiker, "Zorgverlener / Beheerder", "")
+    Person_Ext(aanvaller, "Aanvaller", "")
+
+    System_Boundary(docker, "Docker Compose (OTAP)") {
+        Container(tomcat, "Tomcat + OpenMRS WAR", "Java / Tomcat 9", "Host voor openmrs-core + webservices.rest omod")
+        ContainerDb(mariadb, "MariaDB", "MariaDB 10.x", "Patiëntdata, configuratie, global properties")
+    }
+
+    System_Boundary(ci, "CI/CD — GitHub Actions") {
+        Container(pipeline, "GitHub Actions", "CodeQL, Snyk, SBOM", "Statische analyse, dependency-scan, artefact-publicatie")
+    }
+
+    System_Ext(browser, "Browser / REST-client", "HTTP(S)")
+
+    Rel(gebruiker, browser, "Gebruikt")
+    Rel(browser, tomcat, "HTTP :8080 — geen TLS (T-04)", "HTTP")
+    Rel(aanvaller, tomcat, "Aanval via onbeveiligde endpoints")
+    Rel(tomcat, mariadb, "JDBC — root-credentials (T-05)", "TCP 3306")
+    Rel(pipeline, tomcat, "Deploy omod-artefact")
+```
+
+### C4 Level 3 — Componentdiagram
+
+```mermaid
+C4Component
+    title Componentdiagram — webservices.rest omod
+
+    Container_Boundary(omod, "webservices.rest omod") {
+        Component(restfilter, "REST AuthFilter", "Java / Spring", "Controleert authenticatie + authz op /ws/rest/**")
+        Component(session, "SessionController1_9", "Java / Spring MVC", "/session/diag — privilege-lek (T-02)")
+        Component(settings, "SettingsFormController", "Java / Spring MVC", "/settings.form/search — geen authz (T-01)")
+        Component(swagger, "SwaggerDocController", "Java / Spring MVC", "/apiDocs/debug — reflected XSS (T-03)")
+        Component(resources, "Resource Handlers", "Java / Spring MVC", "CRUD-endpoints: Patient, Encounter, Obs, enz.")
+        Component(context, "OpenMRS Context", "Java", "Brug naar openmrs-core: authenticatie, DB-toegang, GP-beheer")
+    }
+
+    System_Ext(browser, "Browser / REST-client", "")
+    ContainerDb(mariadb, "MariaDB", "MariaDB", "")
+
+    Rel(browser, restfilter, "Alle inkomende HTTP-requests")
+    Rel(restfilter, session, "Doorgestuurd (of omzeild bij /diag)")
+    Rel(restfilter, settings, "Omzeild — geen authz-check (T-01)")
+    Rel(restfilter, swagger, "Omzeild — buiten filter (T-03)")
+    Rel(restfilter, resources, "Geautoriseerde REST-calls")
+    Rel(session, context, "Leest sessie/rollen")
+    Rel(settings, context, "Leest Global Properties")
+    Rel(resources, context, "CRUD via OpenMRS API")
+    Rel(context, mariadb, "JDBC")
+```
 ---
 
-## STAP 1 — Systeembegrip (samenvatting)
+## STAP 2 — Systeembegrip (samenvatting)
 
 `webservices.rest` ontsluit de OpenMRS-kern-API als REST-webservices. De module is een dunne HTTP↔service-vertaallaag; business-logica en datatoegang zitten upstream in `openmrs-api`/`openmrs-web` 2.8.3 (`provided` scope).
 
@@ -32,7 +113,7 @@
 
 ---
 
-## STAP 2 — Asset-identificatie
+## STAP 3 — Asset-identificatie
 
 CIA-classificatie: **C** = Confidentiality, **I** = Integrity, **A** = Availability. De gemarkeerde letter is het meest kritisch voor dat asset.
 
@@ -49,7 +130,7 @@ CIA-classificatie: **C** = Confidentiality, **I** = Integrity, **A** = Availabil
 
 ---
 
-## STAP 3 — STRIDE-analyse per component
+## STAP 4 — STRIDE-analyse per component
 
 Alleen realistische dreigingen voor déze code zijn opgenomen, met codeverwijzing, dreigingsactor en motief.
 
@@ -139,7 +220,7 @@ Alleen realistische dreigingen voor déze code zijn opgenomen, met codeverwijzin
 
 ---
 
-## STAP 4 — Risicoregister
+## STAP 5 — Risicoregister
 
 Score = Kans × Impact. **Rood ≥ 15 · Oranje 8–14 · Groen ≤ 7.**
 
@@ -169,7 +250,7 @@ Score = Kans × Impact. **Rood ≥ 15 · Oranje 8–14 · Groen ≤ 7.**
 - **T-05 (15):** Kans 3 — vereist eerst app-compromittering. Impact 5 — volledige DB-root.
 - **T-06 (15):** Kans 3 — exploiteerbaarheid afhankelijk van runtime-blootstelling; deels upstream. Impact 5 — potentieel RCE.
 
-### STAP 4.1 — Koppeling met de drie beoordeelde gap-analyse-controls
+### STAP 5.1 — Koppeling met de drie beoordeelde gap-analyse-controls
 
 De gap-analyse (herziening 16-06-2026) toetst drie controls; alle drie staan daar
 op *voldoet niet*. Onderstaande tabel laat zien welke STRIDE-dreigingen uit dit
@@ -189,7 +270,7 @@ dezelfde zwakheden vanuit een andere lens.
 
 ---
 
-## STAP 5 — Maatregelen voor de top 5 (hoogste score)
+## STAP 6 — Maatregelen voor de top 5 (hoogste score)
 
 Per dreiging: een **preventieve** maatregel (verlaagt kans) en een **detectieve/correctieve** maatregel (verlaagt impact), gekoppeld aan NEN 7510-2:2024-controls (Bijlage A).
 
