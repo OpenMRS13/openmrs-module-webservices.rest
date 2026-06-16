@@ -6,24 +6,92 @@ on:
       - Development
       - main
       - origin/pipeline-test
+  pull_request:
+    branches:
+      - Development
+      - main
 
 # Dit geeft GitHub Actions de rechten om de SARIF-beveiligingsrapporten te uploaden
 permissions:
   security-events: write
   contents: read
   actions: read
+  pull-requests: write
 
 jobs:
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code ophalen
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java
+
+      - name: Build with Maven
+        run: mvn -B package --no-transfer-progress
+        working-directory: openmrs-module-webservices.rest
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
+  dependency_review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  sbom:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code ophalen
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+
+      - name: Build project
+        run: mvn -B package --no-transfer-progress
+        working-directory: openmrs-module-webservices.rest
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          format: cyclonedx-json
+          output-file: sbom.cyclonedx.json
+          path: openmrs-module-webservices.rest
+
+      - name: Upload SBOM as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cyclonedx.json
+
   # --- DEPLOY NAAR TEST ---
   deploy_test:
-    if: github.ref == 'refs/heads/Development' || github.ref == 'refs/heads/origin/pipeline-test'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/Development' || github.ref == 'refs/heads/origin/pipeline-test')
     runs-on: ubuntu-latest
     environment: Testomgeving
     steps:
       - name: Code ophalen
         uses: actions/checkout@v4
 
-      # Installeer Java 8 (Essentieel voor Maven & Snyk)
+      # Installeer Java 8 (Essentieel voor Maven)
       - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
@@ -35,63 +103,13 @@ jobs:
         run: mvn clean package
         working-directory: openmrs-module-webservices.rest
 
-      # Installeer de Snyk CLI handmatig om fouten in de voorgebakken GitHub Action te omzeilen
-      - name: Snyk CLI installeren
-        run: npm install -g snyk
-
-      # Snyk SAST (Code Scan) - Direct uitgevoerd in de juiste map
-      - name: Snyk SAST (Code Scan)
-        run: snyk code test --sarif --sarif-file-output=snyk-sast.sarif --severity-threshold=high
-        working-directory: openmrs-module-webservices.rest
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
-
-      # Snyk SCA (Dependency Scan) - Direct uitgevoerd in de juiste map
-      - name: Snyk SCA (Dependency Scan)
-        run: snyk test --file=pom.xml --sarif --sarif-file-output=snyk-sca.sarif --severity-threshold=high
-        working-directory: openmrs-module-webservices.rest
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
-
-      # Snyk SBOM genereren
-      - name: Generate SBOM
-        run: snyk sbom --format=cyclonedx-json --output=sbom.json
-        working-directory: openmrs-module-webservices.rest
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      # Upload het SBOM bestand naar GitHub
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-test
-          path: openmrs-module-webservices.rest/sbom.json
-
-      # Upload SAST resultaten naar GitHub Security (Blijft op v3)
-      - name: Upload SAST Sarif
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() 
-        with:
-          sarif_file: openmrs-module-webservices.rest/snyk-sast.sarif
-          category: snyk-code
-
-      # Upload SCA resultaten naar GitHub Security (Blijft op v3)
-      - name: Upload SCA Sarif
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() 
-        with:
-          sarif_file: openmrs-module-webservices.rest/snyk-sca.sarif
-          category: snyk-sca
-
       - name: Deploy naar Test server
         run: |
           echo "Deployen naar Test..."
 
   # --- DEPLOY NAAR PRODUCTIE ---
   deploy_prod:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: Productieomgeving
     steps:
@@ -109,62 +127,6 @@ jobs:
       - name: Build project
         run: mvn clean package
         working-directory: openmrs-module-webservices.rest
-
-      - name: Snyk CLI installeren
-        run: npm install -g snyk
-
-      # Snyk SAST (Code Scan) - Productie
-      - name: Snyk SAST (Code Scan)
-        run: snyk code test --sarif --sarif-file-output=snyk-sast.sarif --severity-threshold=high
-        working-directory: openmrs-module-webservices.rest
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
-
-      # Snyk SCA (Dependency Scan) - Productie
-      - name: Snyk SCA (Dependency Scan)
-        run: snyk test --file=pom.xml --sarif --sarif-file-output=snyk-sca.sarif --severity-threshold=high
-        working-directory: openmrs-module-webservices.rest
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        continue-on-error: true
-
-      # Snyk SBOM genereren - Productie
-      - name: Generate SBOM
-        run: snyk sbom --format=cyclonedx-json --output=sbom.json
-        working-directory: openmrs-module-webservices.rest
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-
-      # Upload het SBOM bestand naar GitHub - Productie
-      - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sbom-prod
-          path: openmrs-module-webservices.rest/sbom.json
-
-      # Upload SAST resultaten naar GitHub Security (Blijft op v3)
-      - name: Upload SAST Sarif
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() 
-        with:
-          sarif_file: openmrs-module-webservices.rest/snyk-sast.sarif
-          category: snyk-code
-
-      # Upload SCA resultaten naar GitHub Security (Blijft op v3)
-      - name: Upload SCA Sarif
-        uses: github/codeql-action/upload-sarif@v3
-        if: always() 
-        with:
-          sarif_file: openmrs-module-webservices.rest/snyk-sca.sarif
-          category: snyk-sca
-
-      # Snyk Monitor voor productie-dashboard
-      - name: Snyk Monitor
-        run: snyk monitor
-        working-directory: openmrs-module-webservices.rest
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
 
       - name: Deploy naar Productie server
         run: |
