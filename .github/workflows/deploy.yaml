@@ -15,7 +15,7 @@ permissions:
 jobs:
   # --- DEPLOY NAAR TEST ---
   deploy_test:
-    if: github.ref == 'refs/heads/Development'
+    if: github.ref == 'refs/heads/Development' or github.ref == 'refs/heads/origin/pipeline-test'
     runs-on: ubuntu-latest
     environment: Testomgeving
     steps:
@@ -31,7 +31,7 @@ jobs:
 
       # Build het project vanuit de juiste map met multi-module support
       - name: Build project
-        run: mvn clean package -DskipTests
+        run: mvn clean package
         working-directory: openmrs-module-webservices.rest
 
       # Installeer de Snyk CLI handmatig om fouten in de voorgebakken GitHub Action te omzeilen
@@ -106,7 +106,7 @@ jobs:
 
       # Build het project vanuit de juiste map met multi-module support
       - name: Build project
-        run: mvn clean package -DskipTests
+        run: mvn clean package
         working-directory: openmrs-module-webservices.rest
 
       - name: Snyk CLI installeren
