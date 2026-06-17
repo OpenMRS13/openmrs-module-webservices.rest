@@ -61,6 +61,13 @@ jobs:
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
         working-directory: openmrs-module-webservices.rest
 
+      # NIEUW: Deze stap pakt het JaCoCo-rapport en hangt het aan de pipeline run
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-report
+          path: openmrs-module-webservices.rest/target/site/jacoco/
+
   # Bestaande SAST Job
   sast:
     runs-on: ubuntu-latest
