@@ -7,11 +7,12 @@ on:
       - main
       - origin/pipeline-test
   pull_request:
+    types: [opened, synchronize, reopened]
     branches:
       - Development
       - main
 
-# Dit geeft GitHub Actions de rechten om de SARIF-beveiligingsrapporten te uploaden
+# Dit geeft GitHub Actions de rechten om de rapporten te uploaden en PR's bij te werken
 permissions:
   security-events: write
   contents: read
@@ -19,6 +20,45 @@ permissions:
   pull-requests: write
 
 jobs:
+  # SonarCloud Analysis Job
+  sonarcloud:
+    name: Code Coverage & Quality Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code ophalen
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Schakelt shallow clones uit voor nauwkeurigere Sonar-statistieken
+
+      # SonarCloud vereist minimaal Java 17 om de scanner zelf te draaien
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Cache SonarQube packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Cache Maven packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      # Voert de tests uit en stuurt de coverage-rapporten rechtstreeks door naar SonarCloud
+      - name: Build and analyze
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=OpenMRS13_openmrs-module-webservices.rest
+        working-directory: openmrs-module-webservices.rest
+
+  # Bestaande SAST Job
   sast:
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +83,7 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
+  # Bestaande Dependency Review Job
   dependency_review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -52,6 +93,7 @@ jobs:
         with:
           fail-on-severity: high
 
+  # Bestaande SBOM Job
   sbom:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -82,7 +124,7 @@ jobs:
           name: sbom
           path: sbom.cyclonedx.json
 
-  # --- DEPLOY NAAR TEST ---
+  # Deploy naar Testomgeving Job
   deploy_test:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/Development' || github.ref == 'refs/heads/origin/pipeline-test')
     runs-on: ubuntu-latest
@@ -91,14 +133,12 @@ jobs:
       - name: Code ophalen
         uses: actions/checkout@v4
 
-      # Installeer Java 8 (Essentieel voor Maven)
       - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
           java-version: '8'
           distribution: 'temurin'
 
-      # Build het project vanuit de juiste map met multi-module support
       - name: Build project
         run: mvn clean package
         working-directory: openmrs-module-webservices.rest
@@ -107,7 +147,7 @@ jobs:
         run: |
           echo "Deployen naar Test..."
 
-  # --- DEPLOY NAAR PRODUCTIE ---
+  # Deploy naar Productieomgeving Job
   deploy_prod:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -116,14 +156,12 @@ jobs:
       - name: Code ophalen
         uses: actions/checkout@v4
 
-      # Installeer Java 8
       - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
           java-version: '8'
           distribution: 'temurin'
 
-      # Build het project vanuit de juiste map met multi-module support
       - name: Build project
         run: mvn clean package
         working-directory: openmrs-module-webservices.rest
