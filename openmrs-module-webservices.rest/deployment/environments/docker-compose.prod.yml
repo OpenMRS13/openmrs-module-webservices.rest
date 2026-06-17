@@ -1,10 +1,50 @@
+version: '3.8'
 services:
+  db:
+    image: mysql:5.7
+    # Fix voor case-sensitivity en tabelnamen
+    command: --character-set-server=utf8 --collation-server=utf8_general_ci --lower_case_table_names=1
+    ports:
+      - "3306:3306"
+
+    env_file:
+      - ../secrets/prod.env
+
+    volumes:
+      - db-prod-data:/var/lib/mysql
+
   openmrs:
     image: openmrs/openmrs-reference-application-distro:latest
+
     ports:
       - "8081:8080"
+
+    depends_on:
+      - db
+
+    env_file:
+      - ../secrets/prod.env
+
+    environment:
+      # Variabelen voor de pre-check van het image
+      - DB_HOST=db
+      - DB_DATABASE=openmrs
+      - DB_USERNAME=openmrs
+      - DB_PASSWORD=openmrs
+      - DB_CREATE_TABLES=true
+      - DB_AUTO_UPDATE=true
+      - MODULE_WEB_ADMIN=true
+
+      # Dwingt de juiste configuratie af via systeem-properties in de JVM
+      - JAVA_OPTS=-Dconnection.url=jdbc:mysql://db:3306/openmrs?autoReconnect=true&sessionVariables=default_storage_engine=InnoDB&useUnicode=true&characterEncoding=UTF-8 -Dconnection.username=openmrs -Dconnection.password=openmrs -Dauto_update_database=true
+
     volumes:
       - openmrs-prod-data:/openmrs/data
 
+      # De runtime-properties file die de wizard definitief omzeilt
+      - ../secrets/openmrs-runtime.properties:/usr/local/tomcat/openmrs-runtime.properties
+      - ../secrets/openmrs-runtime.properties:/usr/local/tomcat/.OpenMRS/openmrs-runtime.properties
+
 volumes:
   openmrs-prod-data:
+  db-prod-data:
