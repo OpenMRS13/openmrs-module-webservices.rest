@@ -11,6 +11,7 @@ package org.openmrs.module.webservices.rest.web.v1_0.controller;
 
 import org.openmrs.module.webservices.rest.SimpleObject;
 import org.openmrs.module.webservices.rest.web.RequestContext;
+import org.openmrs.module.webservices.rest.web.RestAuditLog;
 import org.openmrs.module.webservices.rest.web.RestConstants;
 import org.openmrs.module.webservices.rest.web.RestUtil;
 import org.openmrs.module.webservices.rest.web.api.RestService;
@@ -72,7 +73,9 @@ public class MainResourceController extends BaseRestController {
 		baseUriSetup.setup(request);
 		RequestContext context = RestUtil.getRequestContext(request, response);
 		Retrievable res = (Retrievable) restService.getResourceByName(buildResourceName(resource));
-		return res.retrieve(uuid, context);
+		Object result = res.retrieve(uuid, context);
+		RestAuditLog.read(resource, uuid);
+		return result;
 	}
 	
 	/**
@@ -90,6 +93,7 @@ public class MainResourceController extends BaseRestController {
 		RequestContext context = RestUtil.getRequestContext(request, response);
 		Creatable res = (Creatable) restService.getResourceByName(buildResourceName(resource));
 		Object created = res.create(post, context);
+		RestAuditLog.write("create", resource, null);
 		return RestUtil.created(response, created);
 	}
 	
@@ -102,6 +106,7 @@ public class MainResourceController extends BaseRestController {
 		Resource res = restService.getResourceByName(buildResourceName(resource));
 		if (res instanceof Uploadable) {
 			Object updated = ((Uploadable) res).upload(file, context);
+			RestAuditLog.write("upload", resource, null);
 			return RestUtil.created(response, updated);
 		} else {
 			throw new ResourceDoesNotSupportOperationException(res.getClass().getSimpleName() + "is not uploadable");
@@ -127,11 +132,13 @@ public class MainResourceController extends BaseRestController {
 		if (post.get("deleted") != null && "false".equals(post.get("deleted")) && post.size() == 1) {
 			Deletable res = (Deletable) restService.getResourceByName(buildResourceName(resource));
 			Object undeletedRes = res.undelete(uuid, context);
+			RestAuditLog.write("undelete", resource, uuid);
 			return RestUtil.updated(response, undeletedRes);
 		}
 		else {
 			Updatable res = (Updatable) restService.getResourceByName(buildResourceName(resource));
 			Object updated = res.update(uuid, post, context);
+			RestAuditLog.write("update", resource, uuid);
 			return RestUtil.updated(response, updated);
 		}
 	}
@@ -151,6 +158,7 @@ public class MainResourceController extends BaseRestController {
 		RequestContext context = RestUtil.getRequestContext(request, response);
 		Deletable res = (Deletable) restService.getResourceByName(buildResourceName(resource));
 		res.delete(uuid, reason, context);
+		RestAuditLog.write("delete", resource, uuid);
 		return RestUtil.noContent(response);
 	}
 	
@@ -168,6 +176,7 @@ public class MainResourceController extends BaseRestController {
 		RequestContext context = RestUtil.getRequestContext(request, response);
 		Purgeable res = (Purgeable) restService.getResourceByName(buildResourceName(resource));
 		res.purge(uuid, context);
+		RestAuditLog.sensitive("purge", resource, uuid);
 		return RestUtil.noContent(response);
 	}
 	
@@ -191,22 +200,28 @@ public class MainResourceController extends BaseRestController {
 		@SuppressWarnings("unchecked")
 		SearchHandler searchHandler = restService.getSearchHandler(buildResourceName(resource), request.getParameterMap());
 		if (searchHandler != null) {
-			return searchHandler.search(context).toSimpleObject(conv);
+			SimpleObject searchResult = searchHandler.search(context).toSimpleObject(conv);
+			RestAuditLog.read(resource, null);
+			return searchResult;
 		}
-		
+
 		Enumeration parameters = request.getParameterNames();
 		while (parameters.hasMoreElements()) {
 			if (!RestConstants.SPECIAL_REQUEST_PARAMETERS.contains(parameters.nextElement())) {
 				if (res instanceof Searchable) {
-					return ((Searchable) res).search(context);
+					SimpleObject searchResult = ((Searchable) res).search(context);
+					RestAuditLog.read(resource, null);
+					return searchResult;
 				} else {
 					throw new ResourceDoesNotSupportOperationException(res.getClass().getSimpleName() + " is not searchable");
 				}
 			}
 		}
-		
+
 		if (res instanceof Listable) {
-			return ((Listable) res).getAll(context);
+			SimpleObject all = ((Listable) res).getAll(context);
+			RestAuditLog.read(resource, null);
+			return all;
 		} else {
 			throw new ResourceDoesNotSupportOperationException(res.getClass().getSimpleName() + " is not listable");
 		}
@@ -240,7 +255,9 @@ public class MainResourceController extends BaseRestController {
 		}
 		if(searchHandler != null) {
 			Converter conv = res instanceof Converter ? (Converter) res : null;
-			return searchHandler.search(context).toSimpleObject(conv);
+			SimpleObject searchResult = searchHandler.search(context).toSimpleObject(conv);
+			RestAuditLog.read(resource, null);
+			return searchResult;
 		} else {
 			throw new ResourceDoesNotSupportOperationException(res.getClass().getSimpleName() + " does not have search handler: " + searchHandlerId);
 		}

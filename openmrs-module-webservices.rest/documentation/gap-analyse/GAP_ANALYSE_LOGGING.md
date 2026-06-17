@@ -146,3 +146,55 @@ Leidend principe: **"niet gelogd = niet gebeurd"** — een security-event dat ni
 6. **G9** — logbeleid, retentie en integriteit borgen (deels platform/proces, apart aantonen).
 
 > **Slot:** Voor security-relevante events voldoet de module **niet** aan NEN 7510:2024-2 §8.15/8.16. De eerdere kwalificatie "Gedeeltelijk" (security.md) wordt op grond van deze inventarisatie herzien naar **"Voldoet niet"** voor de audittrail; de aanwezige logging beperkt zich tot technische foutafhandeling en module-lifecycle.
+
+---
+
+## STAP 5 — Implementatie (17-06-2026): status per gat
+
+De ontbrekende logging is geïmplementeerd via één centrale, gestructureerde audit-helper
+**`RestAuditLog`** (SLF4J — geen nieuw framework), met een **eigen logger-naam**
+`org.openmrs.module.webservices.rest.audit` zodat een deployment de audittrail naar een aparte,
+append-only/integriteitsbeschermde appender of SIEM kan routeren. Elke regel bevat **WIE** (`user=<id>`
+of `user=unauthenticated`; bij auth de username), **WAT** (`action` + `resource` + `id`), **WANNEER**
+(framework-timestamp) en **UITKOMST** (`success`/`failure`/`denied`). Caller-velden worden
+gesaneerd (control-tekens → `_`) tegen log-injectie. **Geen** PHI-inhoud, wachtwoorden, tokens,
+activation-keys of global-property-waarden worden ooit aan de helper meegegeven.
+
+**Nieuw:** `omod-common/.../web/RestAuditLog.java` + test `omod-common/.../web/RestAuditLogTest.java`.
+
+| Gat | Status | Wat toegevoegd (event → niveau) | Bestand | NEN |
+|---|---|---|---|---|
+| **G1** Auth succes/falen | **Opgelost** | `authSuccess` INFO, `authFailure` WARN (username+IP, **geen wachtwoord**) | `AuthorizationFilter.java` | 8.15/8.16 |
+| **G2** IP-weigering | **Opgelost** | `accessDenied` WARN (`ip-not-allowed`+IP) vóór 403 | `AuthorizationFilter.java` | 8.15/8.16 |
+| **G3** PHI-inzage/mutatie/purge | **Opgelost** (code-level) | `read` INFO (retrieve/list/search), `write` INFO (create/upload/update/undelete/delete), `sensitive` WARN (purge) — alleen resourcetype+uuid | `MainResourceController.java` | 8.15/8.11 |
+| **G4** GP uitlezen/wijzigen | **Opgelost** | `sensitiveAccess` WARN (`gp-search`, prefix+aantal+IP, **geen waarden**); `write` INFO (`gp-update`, property-**namen**) | `SettingsFormController.java` | 8.15/8.11 |
+| **G5** diag/debug/logout | **Opgelost** (compenserend) | `sensitiveAccess` WARN (`session-diag`, `apidocs-debug` — alleen IP + `tagLength`, **geen tag-waarde/token**); `write` INFO (`logout`) | `SessionController1_9.java`, `SwaggerDocController.java` | 8.15/8.16 |
+| **G6** Admin-acties | **Opgelost** | `write` INFO mét actor (`clear-db-cache`, `update-search-index`) | `ClearDbCacheController2_0.java`, `SearchIndexController2_0.java` | 8.15 |
+| **G7** Wachtwoord wijz./reset | **Opgelost** | `write` INFO (eigen ww / reset), `sensitive` WARN (ww van ander) — **nooit** wachtwoord/activation-key; reset logt alleen of user gevonden is (uuid) | `ChangePasswordController1_8.java`, `PasswordResetController2_2.java` | 8.15/8.11 |
+| **G8** Gevoelige data in logs | **Deels** | `LayoutTemplateProvider:124` logt nu alleen property-**naam**, niet de token-waarde | `LayoutTemplateProvider.java` | 8.11 |
+| **G9** Logconfig/retentie/immutability | **Restpunt** | Code-haak: aparte logger-naam voor routering; retentie/onveranderlijkheid = deploy/proces | n.v.t. (deploy) | 8.15/8.16 |
+
+### Restpunten (bewust niet of niet-volledig in code opgelost)
+
+- **G8 — `BaseRestController.handleException:124/127`:** logt nog steeds de ruwe `ex.getMessage()` +
+  stacktrace (5xx→error, 4xx→info). Dit is legitieme **server-side** technische diagnostiek; de
+  message kán ingezonden data bevatten. Bewust **ongewijzigd** gelaten (zou debugbaarheid raken).
+  *Aanbeveling:* maskeren op appender-/platformniveau. De nieuwe audit-regels nemen sowieso **geen**
+  exceptiemessages mee.
+- **G9 — onveranderlijkheid/bewaartermijn/centralisatie:** valt buiten de modulecode (deploy/proces).
+  De code levert de routerings-haak (aparte logger-naam); het daadwerkelijk wegschrijven naar een
+  append-only store/SIEM en het retentiebeleid moeten op platform-/deployniveau worden ingericht en
+  aangetoond.
+- **Ingebrachte endpoints (T-01/T-02/T-03) niet verwijderd:** dat is een *security-fix* buiten de
+  scope van deze logging-opdracht. Hier is alleen **compenserende WARN-logging** toegevoegd, conform
+  de aanbeveling "zolang ze bestaan".
+
+### Teststatus (WS05)
+
+- **`RestAuditLogTest`** (uitvoerbaar, backend-onafhankelijk): bewijst (a) correct gestructureerde
+  regel per actie (WIE/WAT/uitkomst) en (b) dat waarden nooit in de regel komen + dat CR/LF-injectie
+  wordt geneutraliseerd + dat `currentPrincipal()` zonder context veilig `unauthenticated` teruggeeft.
+- **Beperking:** end-to-end "controller emit het event"-tests vereisen de volledige Spring/OpenMRS-
+  testcontext **plus** een log-appender. Deze konden **niet lokaal worden uitgevoerd** (geen Maven in
+  de werkomgeving) en staan als **vervolgpunt** genoteerd. De helper-tests dekken de kern van WS05
+  (a)+(b) deterministisch.

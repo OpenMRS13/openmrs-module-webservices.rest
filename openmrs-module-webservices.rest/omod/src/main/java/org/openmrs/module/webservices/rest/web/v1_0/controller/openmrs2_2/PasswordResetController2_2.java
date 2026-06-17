@@ -16,6 +16,7 @@ import org.openmrs.api.InvalidActivationKeyException;
 import org.openmrs.api.UserService;
 import org.openmrs.api.ValidationException;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.webservices.rest.web.RestAuditLog;
 import org.openmrs.module.webservices.rest.web.RestConstants;
 import org.openmrs.module.webservices.rest.web.v1_0.controller.BaseRestController;
 import org.openmrs.notification.MessageException;
@@ -51,6 +52,9 @@ public class PasswordResetController2_2 extends BaseRestController {
 			if (user != null) {
 				userService.setUserActivationKey(user);
 			}
+			// Audit (NEN 7510 8.15): record the reset request. The supplied username/email is NOT logged
+			// (8.11); only whether a matching user was found (by uuid).
+			RestAuditLog.write("password-reset-request", "user", user != null ? user.getUuid() : "not-found");
 		}
 		finally {
 			Context.removeProxyPrivilege(PrivilegeConstants.GET_USERS);
@@ -67,6 +71,9 @@ public class PasswordResetController2_2 extends BaseRestController {
 		String newPassword = body.get("newPassword");
 		try {
 			userService.changePasswordUsingActivationKey(activationkey, newPassword);
+			// Audit (NEN 7510 8.15): record a completed password reset. The activation key and the new
+			// password are never logged (8.11).
+			RestAuditLog.write("password-reset-complete", null, null);
 		}
 		catch (InvalidActivationKeyException ex) {
 			throw new ValidationException(ex.getMessage());

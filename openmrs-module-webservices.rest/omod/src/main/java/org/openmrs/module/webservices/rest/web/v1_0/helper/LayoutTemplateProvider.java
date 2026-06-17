@@ -121,7 +121,9 @@ public abstract class LayoutTemplateProvider<T extends LayoutTemplate> {
 				String val = pair[1];
 				parsedElementDefaults.put(name, val);
 			} else {
-				log.warn("Found invalid token while parsing GlobalProperty " + propertyName + " : " + token);
+				// Do not log the token value: a GlobalProperty value may contain sensitive configuration
+				// (NEN 7510 8.11). Log only the property name so the issue is still diagnosable.
+				log.warn("Found invalid token while parsing GlobalProperty {}", propertyName);
 			}
 		}
 		return parsedElementDefaults;

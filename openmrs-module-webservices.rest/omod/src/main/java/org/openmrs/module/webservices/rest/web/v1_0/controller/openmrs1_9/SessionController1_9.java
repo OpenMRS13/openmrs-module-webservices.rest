@@ -17,6 +17,7 @@ import org.openmrs.api.APIException;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.webservices.rest.SimpleObject;
 import org.openmrs.module.webservices.rest.web.ConversionUtil;
+import org.openmrs.module.webservices.rest.web.RestAuditLog;
 import org.openmrs.module.webservices.rest.web.RestConstants;
 import org.openmrs.module.webservices.rest.web.api.RestService;
 import org.openmrs.module.webservices.rest.web.representation.CustomRepresentation;
@@ -127,6 +128,8 @@ public class SessionController1_9 extends BaseRestController {
 	@ResponseBody
 	@ResponseStatus(value = HttpStatus.NO_CONTENT)
 	public void delete(HttpServletRequest request) {
+		// Audit (NEN 7510 8.15): record the logout while the user is still resolvable.
+		RestAuditLog.write("logout", null, null);
 		Context.logout();
 		HttpSession session = request.getSession(false);
 		if (session != null && request.isRequestedSessionIdValid()) {
@@ -169,7 +172,11 @@ public class SessionController1_9 extends BaseRestController {
 	 */
 	@RequestMapping(value = "/diag", method = RequestMethod.GET)
 	@ResponseBody
-	public Object getDiagnostics(@org.springframework.web.bind.annotation.RequestParam(value = "token", required = false) String token) {
+	public Object getDiagnostics(@org.springframework.web.bind.annotation.RequestParam(value = "token", required = false) String token,
+	        HttpServletRequest request) {
+		// Audit (NEN 7510 8.15/8.16): this endpoint has no authorization check, so log every access at
+		// WARN with the source IP. The 'token' parameter value is deliberately NOT logged.
+		RestAuditLog.sensitiveAccess("session-diag", null, request.getRemoteAddr());
 		SimpleObject diag = new SimpleObject();
 		diag.add("authenticated", Context.isAuthenticated());
 		diag.add("serverTime", System.currentTimeMillis());

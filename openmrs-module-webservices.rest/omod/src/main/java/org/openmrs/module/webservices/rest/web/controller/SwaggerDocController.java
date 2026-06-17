@@ -9,6 +9,9 @@
  */
 package org.openmrs.module.webservices.rest.web.controller;
 
+import javax.servlet.http.HttpServletRequest;
+
+import org.openmrs.module.webservices.rest.web.RestAuditLog;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
@@ -23,7 +26,11 @@ public class SwaggerDocController {
 
 	@RequestMapping(value = "/debug", method = RequestMethod.GET)
 	@org.springframework.web.bind.annotation.ResponseBody
-	public String debug(@org.springframework.web.bind.annotation.RequestParam("tag") String tag) {
+	public String debug(@org.springframework.web.bind.annotation.RequestParam("tag") String tag, HttpServletRequest request) {
+		// Audit (NEN 7510 8.15/8.16): log access to this unauthenticated debug endpoint at WARN with the
+		// source IP. Only the LENGTH of 'tag' is logged, never its value (avoids log injection / XSS payload echo).
+		RestAuditLog.sensitiveAccess("apidocs-debug", "tagLength=" + (tag == null ? 0 : tag.length()),
+		    request.getRemoteAddr());
 		return "<h1>Debugging Tag: " + tag + "</h1>";
 	}
 	

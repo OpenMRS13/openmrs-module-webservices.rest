@@ -15,6 +15,7 @@ import org.openmrs.OpenmrsObject;
 import org.openmrs.User;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.webservices.rest.SimpleObject;
+import org.openmrs.module.webservices.rest.web.RestAuditLog;
 import org.openmrs.module.webservices.rest.web.RestConstants;
 import org.openmrs.module.webservices.rest.web.RestUtil;
 import org.openmrs.module.webservices.rest.web.api.RestService;
@@ -102,6 +103,8 @@ public class ClearDbCacheController2_0 extends BaseRestController {
 			sf.getCache().evictCollectionRegions();
 			sf.getCache().evictQueryRegions();
 		}
+		// Audit (NEN 7510 8.15): administrative action — record who cleared the DB cache and for which resource.
+		RestAuditLog.write("clear-db-cache", resourceName, uuid);
 	}
-	
+
 }
