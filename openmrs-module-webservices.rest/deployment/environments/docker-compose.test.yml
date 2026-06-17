@@ -1,10 +1,56 @@
+version: '3.8'
 services:
+  db:
+    image: mysql:5.7
+    # Dezelfde case-sensitivity fix als productie
+    command: --character-set-server=utf8 --collation-server=utf8_general_ci --lower_case_table_names=1
+
+    ports:
+      - "3307:3306" # Aparte poort voor test
+
+    env_file:
+      - ../secrets/test.env
+
+    environment:
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+
+    volumes:
+      - db-test-data:/var/lib/mysql
+
   openmrs:
     image: openmrs/openmrs-reference-application-distro:latest
     ports:
       - "8082:8080"
+
+    depends_on:
+      - db
+
+    env_file:
+      - ../secrets/test.env
+
+    environment:
+      # Variabelen voor de pre-check
+      - DB_HOST=${DB_HOST}
+      - DB_DATABASE=${DB_NAME}
+      - DB_USERNAME=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_CREATE_TABLES=true
+      - DB_AUTO_UPDATE=true
+      - MODULE_WEB_ADMIN=true
+      
+      # De JVM configuratie die direct de waarden uit je test.env injecteert
+      - JAVA_OPTS=-Dconnection.url=jdbc:mysql://${DB_HOST}:3306/${DB_NAME}?autoReconnect=true&sessionVariables=default_storage_engine=InnoDB&useUnicode=true&characterEncoding=UTF-8 -Dconnection.username=${DB_USER} -Dconnection.password=${DB_PASSWORD} -Dauto_update_database=true
+
     volumes:
       - openmrs-test-data:/openmrs/data
 
+      # Let op: zorg dat je een openmrs-runtime.properties in de secrets map hebt staan
+      - ../secrets/openmrs-runtime.properties:/usr/local/tomcat/openmrs-runtime.properties
+      - ../secrets/openmrs-runtime.properties:/usr/local/tomcat/.OpenMRS/openmrs-runtime.properties
+
 volumes:
   openmrs-test-data:
+  db-test-data:
