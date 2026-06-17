@@ -9,14 +9,13 @@
  */
 package org.openmrs.module.webservices.rest.web.v1_0.controller.openmrs2_0;
 
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-
-import org.hibernate.Query;
-import org.hibernate.SessionFactory;
 import org.junit.Test;
 import org.openmrs.Location;
 import org.openmrs.Person;
@@ -48,12 +47,22 @@ public class ClearDbCacheController2_0Test extends RestControllerTestUtils {
 	private static final Integer ID_8 = 8;
 	
 	private static final String QUERY_REGION = "test";
+
+	private void primeSecondLevelCache(Class<?> entityClass, Integer id) {
+		Session cachePrimingSession = sessionFactory.openSession();
+		try {
+			cachePrimingSession.get(entityClass, id);
+		} finally {
+			cachePrimingSession.close();
+		}
+	}
 	
 	@Test
 	public void clearDbCache_shouldEvictTheEntityFromTheCaches() throws Exception {
 		PersonName name = personService.getPersonName(ID_2);
 		//Load the person so that the names are also stored  in person names collection region
 		personService.getPerson(name.getPerson().getPersonId());
+		primeSecondLevelCache(PersonName.class, ID_2);
 		//Let's have the name in a query cache
 		Query query = sessionFactory.getCurrentSession().createQuery("FROM PersonName WHERE personNameId = ?0");
 		query.setInteger(0, 9351);
@@ -79,6 +88,8 @@ public class ClearDbCacheController2_0Test extends RestControllerTestUtils {
 		//Load the persons so that the names are also stored in person names collection region
 		personService.getPerson(name1.getPerson().getPersonId()).getNames();
 		personService.getPerson(name2.getPerson().getPersonId()).getNames();
+		primeSecondLevelCache(PersonName.class, ID_2);
+		primeSecondLevelCache(PersonName.class, ID_8);
 		Query query = sessionFactory.getCurrentSession().createQuery("FROM PersonName WHERE personNameId IN (?0, ?1)");
 		query.setInteger(0, name1.getPersonNameId());
 		query.setInteger(1, name2.getPersonNameId());
@@ -111,6 +122,9 @@ public class ClearDbCacheController2_0Test extends RestControllerTestUtils {
 		//Load the location an persons so that the names also stored in person names collection region
 		personService.getPerson(name1.getPerson().getPersonId()).getNames();
 		personService.getPerson(name2.getPerson().getPersonId()).getNames();
+		primeSecondLevelCache(PersonName.class, ID_2);
+		primeSecondLevelCache(PersonName.class, ID_8);
+		primeSecondLevelCache(Location.class, ID_2);
 		locationService.getLocation(ID_2);
 		Query query = sessionFactory.getCurrentSession().createQuery("FROM PersonName WHERE personNameId IN (?0, ?1)");
 		query.setInteger(0, name1.getPersonNameId());
