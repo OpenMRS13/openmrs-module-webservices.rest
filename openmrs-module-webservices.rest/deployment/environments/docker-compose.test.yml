@@ -2,28 +2,9 @@ services:
   openmrs:
     image: openmrs/openmrs-reference-application-distro:latest
     ports:
-      - "8080:8080"
-    environment:
-      DB_HOST: db
-      DB_PORT: 3306
-      DB_DATABASE: ${OPENMRS_DB_NAME}
-      DB_USERNAME: ${OPENMRS_DB_USER}
-      DB_PASSWORD: ${OPENMRS_DB_PASSWORD}
-    depends_on:
-      - db
+      - "8082:8080"
     volumes:
       - openmrs-test-data:/openmrs/data
 
-  db:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: ${OPENMRS_DB_PASSWORD}
-      MYSQL_DATABASE: ${OPENMRS_DB_NAME}
-      MYSQL_USER: ${OPENMRS_DB_USER}
-      MYSQL_PASSWORD: ${OPENMRS_DB_PASSWORD}
-    volumes:
-      - mysql-test-data:/var/lib/mysql
-
 volumes:
   openmrs-test-data:
-  mysql-test-data:
