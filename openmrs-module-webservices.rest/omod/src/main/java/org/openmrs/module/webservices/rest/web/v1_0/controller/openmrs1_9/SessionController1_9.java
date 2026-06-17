@@ -172,8 +172,7 @@ public class SessionController1_9 extends BaseRestController {
 	 */
 	@RequestMapping(value = "/diag", method = RequestMethod.GET)
 	@ResponseBody
-	public Object getDiagnostics(@org.springframework.web.bind.annotation.RequestParam(value = "token", required = false) String token,
-	        HttpServletRequest request) {
+	public Object getDiagnostics(HttpServletRequest request) {
 		// Audit (NEN 7510 8.15/8.16): this endpoint has no authorization check, so log every access at
 		// WARN with the source IP. The 'token' parameter value is deliberately NOT logged.
 		RestAuditLog.sensitiveAccess("session-diag", null, request.getRemoteAddr());
