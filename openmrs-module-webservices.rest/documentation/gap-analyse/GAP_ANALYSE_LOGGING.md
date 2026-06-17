@@ -191,10 +191,21 @@ activation-keys of global-property-waarden worden ooit aan de helper meegegeven.
 
 ### Teststatus (WS05)
 
-- **`RestAuditLogTest`** (uitvoerbaar, backend-onafhankelijk): bewijst (a) correct gestructureerde
-  regel per actie (WIE/WAT/uitkomst) en (b) dat waarden nooit in de regel komen + dat CR/LF-injectie
-  wordt geneutraliseerd + dat `currentPrincipal()` zonder context veilig `unauthenticated` teruggeeft.
-- **Beperking:** end-to-end "controller emit het event"-tests vereisen de volledige Spring/OpenMRS-
-  testcontext **plus** een log-appender. Deze konden **niet lokaal worden uitgevoerd** (geen Maven in
-  de werkomgeving) en staan als **vervolgpunt** genoteerd. De helper-tests dekken de kern van WS05
-  (a)+(b) deterministisch.
+- **`RestAuditLogTest`** (omod-common, backend-onafhankelijk): bewijst (a) correct gestructureerde
+  regel per actie (WIE/WAT/uitkomst) en (b) dat waarden nooit in de regel komen + CR/LF-injectie wordt
+  geneutraliseerd + `currentPrincipal()` valt zonder context veilig terug op `unauthenticated`. Dekt
+  bovendien álle publieke methoden (auditing breekt nooit een request).
+- **`AuthorizationFilterTest`** (omod-common, context-sensitief): dekt de IP-weigering (G2) en de drie
+  mislukte-authenticatie-paden (G1) — bevestigt o.a. dat de filter bij faalauth de keten laat doorlopen.
+- **`SettingsFormControllerTest`** (omod, context-sensitief): dekt de global-property-zoek (G4).
+- **`SwaggerDocControllerTest`** (omod): dekt het debug-endpoint (G5).
+- **`SessionController1_9Test`** uitgebreid: `getDiagnostics`-test toegevoegd (G5); `delete`-test dekte
+  de logout-audit al.
+- Bestaande tests dekken de nieuwe regels in `MainResourceController` (CRUD), `ChangePasswordController1_8`,
+  `PasswordResetController2_2`, `ClearDbCacheController2_0` en `SearchIndexController2_0`.
+- **Toegevoegd n.a.v. SonarCloud quality gate** (coverage nieuwe code < 80%): bovenstaande
+  filter-/controllertests verhogen de dekking van de toegevoegde auditregels.
+- **Beperking:** de build kon **niet lokaal worden uitgevoerd** (geen Maven in de werkomgeving). De
+  context-sensitieve tests volgen bestaande patronen (`RestUtilTest`, `SessionController1_9Test`) maar
+  moeten in CI worden bevestigd. Eén regel blijft bewust ongedekt: de *succesvolle* Basic-auth in
+  `AuthorizationFilter` (vereist geldige testcredentials); dit is als vervolgpunt genoteerd.

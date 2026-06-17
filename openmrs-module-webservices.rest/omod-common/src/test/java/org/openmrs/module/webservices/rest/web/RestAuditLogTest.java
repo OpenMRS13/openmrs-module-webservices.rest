@@ -108,4 +108,38 @@ public class RestAuditLogTest {
 		// instead of throwing, so that auditing can never break a request.
 		Assert.assertEquals("user=unauthenticated", RestAuditLog.currentPrincipal());
 	}
+
+	/**
+	 * The public methods are fire-and-forget (they emit a log record and return void). The key
+	 * correctness property — and the reason they are exercised here — is that auditing must <b>never</b>
+	 * break the request it is auditing, even when no OpenMRS user context is bound. Each call must
+	 * therefore complete without throwing.
+	 */
+	@Test
+	public void publicMethods_shouldNeverThrowEvenWithoutUserContext() {
+		RestAuditLog.authSuccess("alice", "10.0.0.1");
+		RestAuditLog.authFailure("alice", "10.0.0.1");
+		RestAuditLog.authFailure(null, "10.0.0.1");
+		RestAuditLog.accessDenied("ip-not-allowed", "10.0.0.2");
+		RestAuditLog.read("patient", "abc-uuid");
+		RestAuditLog.read("patient", null);
+		RestAuditLog.write("create", "patient", null);
+		RestAuditLog.write("update", "patient", "abc-uuid");
+		RestAuditLog.sensitive("purge", "patient", "abc-uuid");
+		RestAuditLog.sensitiveAccess("session-diag", null, "10.0.0.3");
+		RestAuditLog.sensitiveAccess("gp-search", "prefix=mail hits=2", "10.0.0.3");
+	}
+
+	@Test
+	public void clean_shouldReplaceTabAndOtherControlCharacters() {
+		Assert.assertEquals("a_b", RestAuditLog.clean("a\tb"));
+		Assert.assertEquals("plain", RestAuditLog.clean("plain"));
+	}
+
+	@Test
+	public void outcomeConstants_shouldHaveExpectedValues() {
+		Assert.assertEquals("success", RestAuditLog.OUTCOME_SUCCESS);
+		Assert.assertEquals("failure", RestAuditLog.OUTCOME_FAILURE);
+		Assert.assertEquals("denied", RestAuditLog.OUTCOME_DENIED);
+	}
 }

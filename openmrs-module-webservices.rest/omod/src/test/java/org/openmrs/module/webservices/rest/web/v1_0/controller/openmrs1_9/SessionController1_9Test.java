@@ -18,6 +18,7 @@ import org.openmrs.GlobalProperty;
 import org.openmrs.Location;
 import org.openmrs.api.APIException;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.webservices.rest.SimpleObject;
 import org.openmrs.util.OpenmrsConstants;
 import org.openmrs.web.test.BaseModuleWebContextSensitiveTest;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -64,6 +65,21 @@ public class SessionController1_9Test extends BaseModuleWebContextSensitiveTest 
 		controller.delete(hsr);
 		Assert.assertFalse(Context.isAuthenticated());
 		Assert.assertNull(hsr.getSession(false));
+	}
+
+	/**
+	 * @see SessionController1_9#getDiagnostics(String, HttpServletRequest)
+	 * @verifies return session info for an authenticated caller and audit the access
+	 */
+	@Test
+	public void getDiagnostics_shouldReturnSessionInfoAndAuditAccess() throws Exception {
+		Object result = controller.getDiagnostics(null, hsr);
+
+		Assert.assertTrue(result instanceof SimpleObject);
+		SimpleObject diag = (SimpleObject) result;
+		Assert.assertEquals(Boolean.TRUE, diag.get("authenticated"));
+		Assert.assertNotNull(diag.get("serverTime"));
+		Assert.assertNotNull(diag.get("currentUser"));
 	}
 	
 	/**
