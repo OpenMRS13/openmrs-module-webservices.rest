@@ -56,7 +56,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn -B clean verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          mvn -B clean verify jacoco:report org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=OpenMRS13_openmrs-module-webservices.rest \
             -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
         working-directory: openmrs-module-webservices.rest
