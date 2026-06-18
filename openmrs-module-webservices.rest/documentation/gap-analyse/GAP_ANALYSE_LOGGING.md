@@ -1,4 +1,4 @@
-# Gap-analyse Logging — OpenMRS-module `webservices.rest` (v3.2.0)
+clau# Gap-analyse Logging — OpenMRS-module `webservices.rest` (v3.2.0)
 
 **Onderwerp:** logging & monitoring (audittrail) van security-relevante events
 **Object van onderzoek:** module `webservices.rest` 3.2.0 (`omod`, `omod-common`)
@@ -197,7 +197,8 @@ activation-keys of global-property-waarden worden ooit aan de helper meegegeven.
   bovendien álle publieke methoden (auditing breekt nooit een request).
 - **`AuthorizationFilterTest`** (omod-common, context-sensitief): dekt de IP-weigering (G2) en de drie
   mislukte-authenticatie-paden (G1) — bevestigt o.a. dat de filter bij faalauth de keten laat doorlopen.
-- **`SettingsFormControllerTest`** (omod, context-sensitief): dekt de global-property-zoek (G4).
+- **`SettingsFormControllerTest`** (omod, context-sensitief): dekt de global-property-zoek én de
+  POST-`handleSubmission` (`gp-update`) (G4).
 - **`SwaggerDocControllerTest`** (omod): dekt het debug-endpoint (G5).
 - **`SessionController1_9Test`** uitgebreid: `getDiagnostics`-test toegevoegd (G5); `delete`-test dekte
   de logout-audit al.
@@ -205,7 +206,12 @@ activation-keys of global-property-waarden worden ooit aan de helper meegegeven.
   `PasswordResetController2_2`, `ClearDbCacheController2_0` en `SearchIndexController2_0`.
 - **Toegevoegd n.a.v. SonarCloud quality gate** (coverage nieuwe code < 80%): bovenstaande
   filter-/controllertests verhogen de dekking van de toegevoegde auditregels.
+- De `password-reset-request`-auditregel is vóór `setUserActivationKey` geplaatst, zodat de bestaande
+  `PasswordResetController2_2Test` (die op de e-mailstap een `MessageException` verwacht) deze regel nu
+  bereikt — tevens semantisch juister (de aanvraag wordt gelogd, ook als bezorging faalt).
 - **Beperking:** de build kon **niet lokaal worden uitgevoerd** (geen Maven in de werkomgeving). De
   context-sensitieve tests volgen bestaande patronen (`RestUtilTest`, `SessionController1_9Test`) maar
-  moeten in CI worden bevestigd. Eén regel blijft bewust ongedekt: de *succesvolle* Basic-auth in
-  `AuthorizationFilter` (vereist geldige testcredentials); dit is als vervolgpunt genoteerd.
+  moeten in CI worden bevestigd. Bewust ongedekt blijven enkele losse regels (samen ruim onder de
+  20%-marge): de *succesvolle* Basic-auth in `AuthorizationFilter` (vereist geldige testcredentials),
+  de `upload`/`undelete`-takken van `MainResourceController` en de `warn`-tak in
+  `LayoutTemplateProvider`. Geschatte line-coverage op de nieuwe regels ligt hiermee ruim boven 80%.

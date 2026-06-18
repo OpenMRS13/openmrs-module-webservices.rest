@@ -9,12 +9,17 @@
  */
 package org.openmrs.module.webservices.rest.web.controller;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.junit.Assert;
 import org.junit.Test;
 import org.openmrs.GlobalProperty;
 import org.openmrs.api.context.Context;
 import org.openmrs.web.test.BaseModuleWebContextSensitiveTest;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.validation.BindException;
+import org.springframework.web.context.request.ServletWebRequest;
 
 /**
  * Tests for {@link SettingsFormController#searchProperties(String, javax.servlet.http.HttpServletRequest)}.
@@ -45,5 +50,20 @@ public class SettingsFormControllerTest extends BaseModuleWebContextSensitiveTes
 		String json = new SettingsFormController().searchProperties("no.such.prefix.exists.xyz", req);
 
 		Assert.assertEquals("[]", json);
+	}
+
+	@Test
+	public void handleSubmission_shouldSavePropertiesAndAuditTheChange() {
+		SettingsFormController controller = new SettingsFormController();
+		List<GlobalProperty> props = new ArrayList<GlobalProperty>();
+		props.add(new GlobalProperty("unittest.audit.save", "value1"));
+		SettingsFormController.GlobalPropertiesModel model = controller.new GlobalPropertiesModel(props);
+		BindException errors = new BindException(model, "globalPropertiesModel");
+		ServletWebRequest request = new ServletWebRequest(new MockHttpServletRequest());
+
+		String view = controller.handleSubmission(model, errors, request);
+
+		Assert.assertEquals("redirect:settings.form", view);
+		Assert.assertEquals("value1", Context.getAdministrationService().getGlobalProperty("unittest.audit.save"));
 	}
 }

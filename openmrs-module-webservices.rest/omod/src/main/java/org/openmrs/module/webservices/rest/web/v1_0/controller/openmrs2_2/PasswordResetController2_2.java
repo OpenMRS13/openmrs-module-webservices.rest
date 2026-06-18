@@ -49,12 +49,13 @@ public class PasswordResetController2_2 extends BaseRestController {
 			Context.addProxyPrivilege(PrivilegeConstants.MANAGE_GLOBAL_PROPERTIES);
 			Context.addProxyPrivilege(PrivilegeConstants.EDIT_USER_PASSWORDS);
 			User user = userService.getUserByUsernameOrEmail(usernameOrEmail);
+			// Audit (NEN 7510 8.15): record the reset request before the (email-sending) key generation, so
+			// the attempt is logged even if delivery fails. The supplied username/email is NOT logged (8.11);
+			// only whether a matching user was found (by uuid).
+			RestAuditLog.write("password-reset-request", "user", user != null ? user.getUuid() : "not-found");
 			if (user != null) {
 				userService.setUserActivationKey(user);
 			}
-			// Audit (NEN 7510 8.15): record the reset request. The supplied username/email is NOT logged
-			// (8.11); only whether a matching user was found (by uuid).
-			RestAuditLog.write("password-reset-request", "user", user != null ? user.getUuid() : "not-found");
 		}
 		finally {
 			Context.removeProxyPrivilege(PrivilegeConstants.GET_USERS);
