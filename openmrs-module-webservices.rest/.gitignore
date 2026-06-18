@@ -29,6 +29,7 @@ local.properties
 # Deployment secrets
 deployment/secrets/*.env
 deployment/secrets/*.local
+deployment/secrets/*.properties
 
 # External tool builders
 .externalToolBuilders/
