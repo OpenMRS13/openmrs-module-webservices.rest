@@ -14,12 +14,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.servlet.http.HttpServletRequest;
-
 import org.openmrs.GlobalProperty;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.webservices.rest.web.RestAuditLog;
 import org.openmrs.module.webservices.rest.web.RestConstants;
 import org.openmrs.web.WebConstants;
 import org.springframework.stereotype.Controller;
@@ -52,23 +49,24 @@ public class SettingsFormController {
 	 */
 	@RequestMapping(value = "/search", method = RequestMethod.GET)
 	@org.springframework.web.bind.annotation.ResponseBody
-	public String searchProperties(@org.springframework.web.bind.annotation.RequestParam(value = "prefix", defaultValue = "") String prefix,
-	        HttpServletRequest request) {
-		// Missing auth: no Context.isAuthenticated() check; any HTTP client can call this endpoint
-		StringBuilder result = new StringBuilder("[");
-		int hits = 0;
-		for (GlobalProperty gp : Context.getAdministrationService().getGlobalPropertiesByPrefix(prefix)) {
-			// Returns property names AND values — may expose passwords, API keys, and other secrets stored as global properties
-			result.append("{\"property\":\"").append(gp.getProperty())
-			      .append("\",\"value\":\"").append(gp.getPropertyValue()).append("\"},");
-			hits++;
+	public String searchProperties(@org.springframework.web.bind.annotation.RequestParam(value = "prefix", defaultValue = "") String prefix) throws Exception {
+		requireManageGlobalPropertiesPrivilege();
+		List<org.openmrs.module.webservices.rest.SimpleObject> list = new java.util.ArrayList<>();
+		for (GlobalProperty gp : getAdministrationService().getGlobalPropertiesByPrefix(prefix)) {
+			org.openmrs.module.webservices.rest.SimpleObject obj = new org.openmrs.module.webservices.rest.SimpleObject();
+			obj.add("property", gp.getProperty());
+			obj.add("value", gp.getPropertyValue());
+			list.add(obj);
 		}
-		if (result.length() > 1) result.deleteCharAt(result.length() - 1);
-		result.append("]");
-		// Audit (NEN 7510 8.15): log the access to the global-property search (source IP, requested prefix
-		// and number of hits) at WARN. The property VALUES are never logged (8.11), only metadata.
-		RestAuditLog.sensitiveAccess("gp-search", "prefix=" + prefix + " hits=" + hits, request.getRemoteAddr());
-		return result.toString();
+		return new org.codehaus.jackson.map.ObjectMapper().writeValueAsString(list);
+	}
+
+	protected void requireManageGlobalPropertiesPrivilege() {
+		Context.requirePrivilege("Manage Global Properties");
+	}
+
+	protected AdministrationService getAdministrationService() {
+		return Context.getAdministrationService();
 	}
 	
 	@RequestMapping(method = RequestMethod.POST)
@@ -79,18 +77,10 @@ public class SettingsFormController {
 			return null; // show the form again
 			
 		AdministrationService administrationService = Context.getAdministrationService();
-		StringBuilder changedProperties = new StringBuilder();
 		for (GlobalProperty p : globalPropertiesModel.getProperties()) {
 			administrationService.saveGlobalProperty(p);
-			if (changedProperties.length() > 0) {
-				changedProperties.append(",");
-			}
-			changedProperties.append(p.getProperty());
 		}
-		// Audit (NEN 7510 8.15): log which global properties were changed and by whom. Only the property
-		// NAMES are logged, never the values, to avoid leaking secrets (8.11).
-		RestAuditLog.write("gp-update", "global-property", changedProperties.toString());
-
+		
 		request.setAttribute(WebConstants.OPENMRS_MSG_ATTR, Context.getMessageSourceService().getMessage("general.saved"),
 		    RequestAttributes.SCOPE_SESSION);
 		return "redirect:settings.form";

@@ -11,36 +11,17 @@ package org.openmrs.module.webservices.rest.web.controller;
 
 import org.junit.Assert;
 import org.junit.Test;
-import org.springframework.mock.web.MockHttpServletRequest;
 
-/**
- * Tests for {@link SwaggerDocController#debug(String, javax.servlet.http.HttpServletRequest)}.
- * <p>
- * The endpoint emits a security-audit event (NEN 7510:2024-2 control 8.15) for every access. These
- * tests confirm that auditing does not break the response and — importantly — that auditing only
- * records the <i>length</i> of the {@code tag} parameter, never its value (8.11 / log-injection
- * protection). No OpenMRS context is required because the audit logger falls back to an unauthenticated
- * principal.
- */
 public class SwaggerDocControllerTest {
 
-	@Test
-	public void debug_shouldEchoTagAndAuditAccessWithoutThrowing() {
-		MockHttpServletRequest req = new MockHttpServletRequest();
-		req.setRemoteAddr("127.0.0.1");
-
-		String result = new SwaggerDocController().debug("mytag", req);
-
-		Assert.assertTrue(result.contains("mytag"));
-	}
+	private final SwaggerDocController controller = new SwaggerDocController();
 
 	@Test
-	public void debug_shouldHandleNullTag() {
-		MockHttpServletRequest req = new MockHttpServletRequest();
-		req.setRemoteAddr("127.0.0.1");
-
-		String result = new SwaggerDocController().debug(null, req);
-
+	public void debug_shouldReturnEscapedHtmlToPreventXss() {
+		String input = "<script>alert('xss')</script>";
+		String result = controller.debug(input);
 		Assert.assertNotNull(result);
+		Assert.assertEquals("<h1>Debugging Tag: &lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;</h1>", result);
+		Assert.assertFalse(result.contains("<script>"));
 	}
 }

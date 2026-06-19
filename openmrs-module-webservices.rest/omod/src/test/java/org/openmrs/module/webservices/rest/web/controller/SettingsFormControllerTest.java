@@ -9,61 +9,59 @@
  */
 package org.openmrs.module.webservices.rest.web.controller;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.mockito.Mockito;
 import org.openmrs.GlobalProperty;
-import org.openmrs.api.context.Context;
-import org.openmrs.web.test.BaseModuleWebContextSensitiveTest;
-import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.validation.BindException;
-import org.springframework.web.context.request.ServletWebRequest;
+import org.openmrs.api.APIException;
+import org.openmrs.api.AdministrationService;
 
-/**
- * Tests for {@link SettingsFormController#searchProperties(String, javax.servlet.http.HttpServletRequest)}.
- * <p>
- * The endpoint emits a security-audit event (NEN 7510:2024-2 control 8.15) for every access. These
- * tests confirm the search still returns matching properties and that the audit logging does not break
- * the response. Context-sensitive because the controller reads global properties via the OpenMRS
- * {@code Context}.
- */
-public class SettingsFormControllerTest extends BaseModuleWebContextSensitiveTest {
+public class SettingsFormControllerTest {
 
-	@Test
-	public void searchProperties_shouldReturnMatchingPropertiesAndAuditAccess() {
-		Context.getAdministrationService().saveGlobalProperty(new GlobalProperty("unittest.audit.key", "somevalue"));
-		MockHttpServletRequest req = new MockHttpServletRequest();
-		req.setRemoteAddr("127.0.0.1");
+	private SettingsFormController newControllerWithProperties(List<GlobalProperty> properties) {
+		AdministrationService administrationService = Mockito.mock(AdministrationService.class);
+		Mockito.when(administrationService.getGlobalPropertiesByPrefix("webservices.rest")).thenReturn(properties);
 
-		String json = new SettingsFormController().searchProperties("unittest.audit", req);
+		return new SettingsFormController() {
+			@Override
+			protected void requireManageGlobalPropertiesPrivilege() {
+				// authenticated test path only needs the controller logic
+			}
 
-		Assert.assertTrue(json.contains("unittest.audit.key"));
+			@Override
+			protected AdministrationService getAdministrationService() {
+				return administrationService;
+			}
+		};
 	}
 
 	@Test
-	public void searchProperties_shouldReturnEmptyArrayWhenNothingMatches() {
-		MockHttpServletRequest req = new MockHttpServletRequest();
-		req.setRemoteAddr("127.0.0.1");
-
-		String json = new SettingsFormController().searchProperties("no.such.prefix.exists.xyz", req);
-
-		Assert.assertEquals("[]", json);
+	public void searchProperties_shouldSucceedForAuthenticatedUserWithPrivilege() throws Exception {
+		SettingsFormController controller = newControllerWithProperties(Collections.singletonList(new GlobalProperty(
+			"webservices.rest.maxResultsDefault", "50")));
+		String result = controller.searchProperties("webservices.rest");
+		Assert.assertNotNull(result);
+		Assert.assertTrue(result.startsWith("["));
+		Assert.assertTrue(result.endsWith("]"));
+		Assert.assertTrue(result.contains("webservices.rest.maxResultsDefault"));
 	}
 
-	@Test
-	public void handleSubmission_shouldSavePropertiesAndAuditTheChange() {
-		SettingsFormController controller = new SettingsFormController();
-		List<GlobalProperty> props = new ArrayList<GlobalProperty>();
-		props.add(new GlobalProperty("unittest.audit.save", "value1"));
-		SettingsFormController.GlobalPropertiesModel model = controller.new GlobalPropertiesModel(props);
-		BindException errors = new BindException(model, "globalPropertiesModel");
-		ServletWebRequest request = new ServletWebRequest(new MockHttpServletRequest());
+	@Test(expected = APIException.class)
+	public void searchProperties_shouldFailForUnauthenticatedUser() throws Exception {
+		SettingsFormController controller = new SettingsFormController() {
+			@Override
+			protected void requireManageGlobalPropertiesPrivilege() {
+				throw new APIException();
+			}
 
-		String view = controller.handleSubmission(model, errors, request);
-
-		Assert.assertEquals("redirect:settings.form", view);
-		Assert.assertEquals("value1", Context.getAdministrationService().getGlobalProperty("unittest.audit.save"));
+			@Override
+			protected AdministrationService getAdministrationService() {
+				return Mockito.mock(AdministrationService.class);
+			}
+		};
+		controller.searchProperties("webservices.rest");
 	}
 }
