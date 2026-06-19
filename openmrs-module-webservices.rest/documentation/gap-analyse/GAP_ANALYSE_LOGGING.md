@@ -18,6 +18,7 @@ Er bestond **geen zelfstandige logging-gap-analyse**. Logging kwam slechts zijde
 - **`gap-analyse/security.md`** beoordeelde **A.8.15 Logging als "Gedeeltelijk"** met de onderbouwing dat foutlogging bestaat in `BaseRestController.handleException` (5xx→error, 4xx→info) maar dat er "geen aantoonbare security-/audit-logging van toegang" is.
 - **`THREAT_MODEL.md`** benoemde dit als **T-15 (Repudiation, score 6, groen)**: "geen aantoonbare security-/audittrail van gevoelige toegang".
 
+
 **Wat nu kritisch anders wordt beoordeeld:**
 
 1. **"Gedeeltelijk" was te mild.** De aanwezige logging dekt vrijwel uitsluitend *technische foutafhandeling* en *lifecycle* (module start/stop). Voor de kern van 8.15 — een **security-audittrail** (wie deed wat, wanneer, met welk resultaat) — is de feitelijke dekking **nihil**. Voor security-events is het oordeel **"Voldoet niet"**, niet "Gedeeltelijk".
