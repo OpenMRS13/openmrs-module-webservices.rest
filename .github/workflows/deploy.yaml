@@ -44,6 +44,7 @@ jobs:
           java-version: '17'
           distribution: 'zulu'
 
+      # Cache SonarQube packages
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
@@ -51,6 +52,7 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
+      # Cache Maven packages
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -63,11 +65,11 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
+          mvn license:format
           mvn -B jacoco:prepare-agent clean verify jacoco:report org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=OpenMRS13_openmrs-module-webservices.rest \
-            -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml
-            -Djacoco.skip=true \
-            -Dlicense.skip=true
+            -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
+            -Djacoco.skip=true
         working-directory: openmrs-module-webservices.rest
 
       # HIER IS DE UPLOAD: De ** zorgt dat hij diep in de submappen zoekt naar de rapporten
@@ -95,8 +97,11 @@ jobs:
         with:
           languages: java
 
+      # Eerst licenties fixen, dan pas packagen!
       - name: Build with Maven
-        run: mvn -B package --no-transfer-progress
+        run: |
+          mvn license:format
+          mvn -B package --no-transfer-progress
         working-directory: openmrs-module-webservices.rest
 
       - name: Perform CodeQL Analysis
@@ -126,8 +131,11 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
+      # Eerst licenties fixen, dan pas packagen!
       - name: Build project
-        run: mvn -B package --no-transfer-progress
+        run: |
+          mvn license:format
+          mvn -B package --no-transfer-progress
         working-directory: openmrs-module-webservices.rest
 
       - name: Generate SBOM
@@ -158,8 +166,11 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
+      # Eerst licenties fixen, dan pas packagen!
       - name: Build project
-        run: mvn clean package
+        run: |
+          mvn license:format
+          mvn clean package
         working-directory: openmrs-module-webservices.rest
 
       - name: Deploy naar Test server
@@ -181,8 +192,11 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
+      # Eerst licenties fixen, dan pas packagen!
       - name: Build project
-        run: mvn clean package
+        run: |
+          mvn license:format
+          mvn clean package
         working-directory: openmrs-module-webservices.rest
 
       - name: Deploy naar Productie server
