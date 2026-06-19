@@ -1,4 +1,4 @@
-# Systematische Analyse van de Onderhoudbaarheid (Maintainability)
+# Systematische Analyse van de Onderhoudbaarheid
 
 ## Inleiding en context
 De onderhoudbaarheid van de `openmrs-module-webservices.rest` code is systematisch geanalyseerd met behulp van de statische analyse-tool SonarCloud. Hierbij is gekeken naar specifieke softwaremetrieken om de kwaliteit van de code op de lange termijn te waarborgen.
