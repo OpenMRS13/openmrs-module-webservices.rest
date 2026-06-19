@@ -50,15 +50,23 @@ public class SettingsFormController {
 	@RequestMapping(value = "/search", method = RequestMethod.GET)
 	@org.springframework.web.bind.annotation.ResponseBody
 	public String searchProperties(@org.springframework.web.bind.annotation.RequestParam(value = "prefix", defaultValue = "") String prefix) throws Exception {
-		Context.requirePrivilege("Manage Global Properties");
+		requireManageGlobalPropertiesPrivilege();
 		List<org.openmrs.module.webservices.rest.SimpleObject> list = new java.util.ArrayList<>();
-		for (GlobalProperty gp : Context.getAdministrationService().getGlobalPropertiesByPrefix(prefix)) {
+		for (GlobalProperty gp : getAdministrationService().getGlobalPropertiesByPrefix(prefix)) {
 			org.openmrs.module.webservices.rest.SimpleObject obj = new org.openmrs.module.webservices.rest.SimpleObject();
 			obj.add("property", gp.getProperty());
 			obj.add("value", gp.getPropertyValue());
 			list.add(obj);
 		}
 		return new org.codehaus.jackson.map.ObjectMapper().writeValueAsString(list);
+	}
+
+	protected void requireManageGlobalPropertiesPrivilege() {
+		Context.requirePrivilege("Manage Global Properties");
+	}
+
+	protected AdministrationService getAdministrationService() {
+		return Context.getAdministrationService();
 	}
 	
 	@RequestMapping(method = RequestMethod.POST)
