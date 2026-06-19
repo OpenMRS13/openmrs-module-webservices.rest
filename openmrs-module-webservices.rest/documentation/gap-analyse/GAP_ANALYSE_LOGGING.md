@@ -28,6 +28,7 @@ Er bestond **geen zelfstandige logging-gap-analyse**. Logging kwam slechts zijde
 
 ---
 
+
 ## STAP 2 — Security-events afgeleid uit endpoints/filters, gekoppeld aan dreigingen
 
 Afgeleid uit de controllers, REST-endpoints en filters; gekoppeld aan de dreiging-ID's uit `THREAT_MODEL.md`.
