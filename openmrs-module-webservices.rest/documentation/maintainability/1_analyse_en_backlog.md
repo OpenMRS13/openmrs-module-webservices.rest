@@ -21,11 +21,31 @@ Op basis van de initiële analyses in de CI-pipeline (geconfigureerd in [deploy.
 
 | Metriek | Baseline Waarde | Kwalificatie | Analyse / Toelichting |
 | :--- | :--- | :--- | :--- |
-| **Code Coverage (JaCoCo)** | ~64.8% | Voldoende | De core-helpers en resources zijn redelijk getest. Kritieke controllers (zoals `SwaggerDocController` en `SettingsFormController`) zijn echter **0% getest**. |
-| **Code Smells (SonarCloud)** | 142 smells | Middel | Veel voorkomende smells zijn onder andere: te diepe nestings, onnodig complexe switch-statements en string-concatenaties voor JSON-generatie. |
-| **Duplicatie % (SonarCloud)** | 4.2% | Goed | Duplicatie is relatief laag, maar er is wel duplicatie zichtbaar in de manier waarop foutafhandeling en handmatige JSON-strings worden opgebouwd in verschillende controllers. |
+| **Code Coverage (JaCoCo)** | ~65.3% | Voldoende | De core-helpers en resources zijn redelijk getest. Kritieke controllers (zoals `SwaggerDocController` en `SettingsFormController`) zijn echter **0% getest**. |
+| **Code Smells (SonarCloud)** | 1958 smells | Middel | Veel voorkomende smells zijn onder andere: te diepe nestings, onnodig complexe switch-statements en string-concatenaties voor JSON-generatie. |
+| **Duplicatie % (SonarCloud)** | 7.6% | Middel | Duplicatie is iets hoger dan de standaard, wat betekent dat er relatief veel code is gekopieerd. Dit verhoogt het risico op fouten bij eventueel toekomstig onderhoud, omdat er nu bug fixes op meerdere plekken tegelijk moeten worden opgelost. |
 | **Cyclomatische Complexiteit** | Gemiddeld 8 per methode | Voldoende | De complexiteit is in de meeste resources acceptabel, maar piekt in legacy-controllers en deserialisatie-helpers. |
-| **Technical Debt (SQALE)** | 12 dagen | Voldoende | De geschatte inspanning om alle smells en technische schuld op te lossen is 12 dagen. |
+| **Technical Debt (SQALE)** | 54 dagen | Veel | De geschatte inspanning om alle smells en technische schuld op te lossen is 54 dagen. |
+| **Maintainability Rating** | A | Goed | SonarCloud deelt een rating uit op basis van de hoeveelheid 'Code Smells' (punten in de code die technisch wel werken, maar slordig zijn geschreven). Ook kijkt het naar de hoeveelheid Technical Debt. |
+
+---
+
+## 3. Bepaling en Onderbouwing van het Coverage Percentage
+
+**Gekozen Streefpercentage:** 70% Code Coverage op de totale codebase.
+
+### Onderbouwing van deze keuze
+De keuze voor dit percentage is gebaseerd op een weging tussen softwarekwaliteit, de aard van de applicatie en de technische haalbaarheid:
+
+* **Het doel van de applicatie:** OpenMRS is een medisch softwaresysteem. De REST-module wisselt patiëntgegevens, diagnoses en behandelplannen uit. Een bug in deze API kan direct impact hebben op de integriteit van medische data. Een goede testdekking is daarom vereist om ervoor te zorgen dat belangrijke data-transformaties en autorisatie-checks altijd goed werken.
+* **De 80%-regel in de industrie:** Binnen de software engineering is 80% coverage de algemene standaard. Hoger gaan dan 80% levert vaak weinig extra waarde op, omdat er dan onevenredig veel tijd besteed moet worden aan het testen van simpele code zoals getters en setters, in plaats van complexe bedrijfslogica.
+* **Haalbaarheid:** De standaard 80% die SonarCloud adviseert is voor dit specifieke project simpelweg niet haalbaar; dat zou veel te veel tijd kosten omdat je dan bijna de hele basis moet verbouwen. Een doel van 70% op de totale module is daarentegen wel realistisch. Dit dwingt ons om kritisch te kijken en de tests alléén te schrijven voor de belangrijkste onderdelen waar de meeste risico's liggen.
+
+### Huidige Status vs. Doelstelling
+* **Huidige Code Coverage:** **65.3%**
+* **Analyse:** De huidige coverage bevindt zich met 65.3% net onder de gestelde ondergrens van 70%. Dit betekent dat er op dit moment een aantal risico’s zijn waarbij ongeteste paden in de code onverwacht gedrag kunnen vertonen bij updates.
+* **Actieplan:** Bij toekomstige uitbreidingen zal er strenger worden gecontroleerd op de 'Quality Gate' voor nieuwe code, zodat elke nieuwe Pull Request wél aan de 80%-norm voldoet voor dat specifieke deel en de totale score stapsgewijs omhoog wordt getrokken richting de 70%.
+
 
 ---
 
