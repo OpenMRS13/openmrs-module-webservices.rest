@@ -170,6 +170,7 @@ public class SessionController1_9 extends BaseRestController {
 	@RequestMapping(value = "/diag", method = RequestMethod.GET)
 	@ResponseBody
 	public Object getDiagnostics(@org.springframework.web.bind.annotation.RequestParam(value = "token", required = false) String token) {
+		Context.requirePrivilege(RestConstants.PRIV_VIEW_RESTWS);
 		SimpleObject diag = new SimpleObject();
 		diag.add("authenticated", Context.isAuthenticated());
 		diag.add("serverTime", System.currentTimeMillis());

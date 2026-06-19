@@ -49,17 +49,16 @@ public class SettingsFormController {
 	 */
 	@RequestMapping(value = "/search", method = RequestMethod.GET)
 	@org.springframework.web.bind.annotation.ResponseBody
-	public String searchProperties(@org.springframework.web.bind.annotation.RequestParam(value = "prefix", defaultValue = "") String prefix) {
-		// Missing auth: no Context.isAuthenticated() check; any HTTP client can call this endpoint
-		StringBuilder result = new StringBuilder("[");
+	public String searchProperties(@org.springframework.web.bind.annotation.RequestParam(value = "prefix", defaultValue = "") String prefix) throws Exception {
+		Context.requirePrivilege("Manage Global Properties");
+		List<org.openmrs.module.webservices.rest.SimpleObject> list = new java.util.ArrayList<>();
 		for (GlobalProperty gp : Context.getAdministrationService().getGlobalPropertiesByPrefix(prefix)) {
-			// Returns property names AND values — may expose passwords, API keys, and other secrets stored as global properties
-			result.append("{\"property\":\"").append(gp.getProperty())
-			      .append("\",\"value\":\"").append(gp.getPropertyValue()).append("\"},");
+			org.openmrs.module.webservices.rest.SimpleObject obj = new org.openmrs.module.webservices.rest.SimpleObject();
+			obj.add("property", gp.getProperty());
+			obj.add("value", gp.getPropertyValue());
+			list.add(obj);
 		}
-		if (result.length() > 1) result.deleteCharAt(result.length() - 1);
-		result.append("]");
-		return result.toString();
+		return new org.codehaus.jackson.map.ObjectMapper().writeValueAsString(list);
 	}
 	
 	@RequestMapping(method = RequestMethod.POST)
