@@ -28,6 +28,7 @@ import org.openmrs.module.webservices.rest.web.representation.Representation;
 import org.openmrs.module.webservices.rest.web.resource.impl.DelegatingResourceDescription;
 import org.openmrs.module.webservices.rest.web.resource.impl.DelegatingSubResource;
 import org.openmrs.module.webservices.rest.web.resource.impl.NeedsPaging;
+import org.openmrs.module.webservices.rest.web.response.IllegalPropertyException;
 import org.openmrs.module.webservices.rest.web.response.ResponseException;
 
 import java.util.ArrayList;
@@ -235,6 +236,18 @@ public class PersonAddressResource1_8 extends DelegatingSubResource<PersonAddres
 	 */
 	@Override
 	public PersonAddress save(PersonAddress newAddress) {
+		validateAddressField(newAddress.getAddress1());
+		validateAddressField(newAddress.getAddress2());
+		validateAddressField(newAddress.getAddress3());
+		validateAddressField(newAddress.getAddress4());
+		validateAddressField(newAddress.getAddress5());
+		validateAddressField(newAddress.getAddress6());
+		validateAddressField(newAddress.getCityVillage());
+		validateAddressField(newAddress.getStateProvince());
+		validateAddressField(newAddress.getCountry());
+		validateAddressField(newAddress.getPostalCode());
+		validateAddressField(newAddress.getCountyDistrict());
+
 		// make sure that the address has actually been added to the person
 		boolean needToAdd = true;
 		for (PersonAddress pa : newAddress.getPerson().getAddresses()) {
@@ -243,12 +256,11 @@ public class PersonAddressResource1_8 extends DelegatingSubResource<PersonAddres
 				break;
 			}
 		}
-		
+
 		if (needToAdd) {
 			newAddress.getPerson().addAddress(newAddress);
 		}
-		
-		// if this address is marked preferred, then we need to clear any others that are marked as preferred
+
 		if (newAddress.isPreferred()) {
 			for (PersonAddress pa : newAddress.getPerson().getAddresses()) {
 				if (!pa.equals(newAddress)) {
@@ -256,10 +268,16 @@ public class PersonAddressResource1_8 extends DelegatingSubResource<PersonAddres
 				}
 			}
 		}
-		
+
 		Context.getPersonService().savePerson(newAddress.getPerson());
-		
+
 		return newAddress;
+	}
+
+	private void validateAddressField(String value) {
+		if (value != null && value.matches(".*[<>\"'&].*")) {
+			throw new IllegalPropertyException("Adresvelden mogen geen HTML-speciale tekens bevatten (<, >, \", ', &)");
+		}
 	}
 	
 	/**
