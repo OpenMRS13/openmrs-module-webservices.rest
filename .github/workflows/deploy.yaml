@@ -66,6 +66,7 @@ jobs:
           mvn -B jacoco:prepare-agent clean verify jacoco:report org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=OpenMRS13_openmrs-module-webservices.rest \
             -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml
+            -Djacoco.skip=true
         working-directory: openmrs-module-webservices.rest
 
       # HIER IS DE UPLOAD: De ** zorgt dat hij diep in de submappen zoekt naar de rapporten
