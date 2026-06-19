@@ -51,14 +51,15 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      # Voert de tests uit en stuurt de coverage-rapporten rechtstreeks door naar SonarCloud
+      # Bouwen op Java 8, scannen via de Sonar-tool
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn -B clean verify jacoco:report org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          # We voegen 'jacoco:prepare-agent' toe vóór clean verify!
+          mvn -B jacoco:prepare-agent clean verify jacoco:report org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=OpenMRS13_openmrs-module-webservices.rest \
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml
+            -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
         working-directory: openmrs-module-webservices.rest
 
       # NIEUW: Deze stap pakt het JaCoCo-rapport en hangt het aan de pipeline run
