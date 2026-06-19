@@ -12,6 +12,7 @@ on:
       - Development
       - main
 
+# Dit geeft GitHub Actions de rechten om de rapporten te uploaden en PR's bij te werken
 permissions:
   security-events: write
   contents: read
@@ -29,21 +30,21 @@ jobs:
         with:
           fetch-depth: 0 
 
-      # We gebruiken Java 8 om het project correct te bouwen en te testen!
+      # We stellen Java 8 in om OpenMRS correct te compileren/testen
       - name: Set up JDK 8 for Building
         uses: actions/setup-java@v4
         with:
           java-version: '8'
           distribution: 'temurin'
 
-      # SonarCloud heeft stiekem zélf Java 17 nodig om de resultaten te versturen. 
-      # Door Java 17 als extra runtime te registreren, blijft de build stabiel op Java 8.
+      # SonarScanner heeft intern Java 17 nodig om de resultaten te versturen
       - name: Set up JDK 17 for SonarScanner
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'zulu'
 
+      # Cache SonarQube packages
       - name: Cache SonarQube packages
         uses: actions/cache@v4
         with:
@@ -51,6 +52,7 @@ jobs:
           key: ${{ runner.os }}-sonar
           restore-keys: ${{ runner.os }}-sonar
 
+      # Cache Maven packages
       - name: Cache Maven packages
         uses: actions/cache@v4
         with:
@@ -58,22 +60,24 @@ jobs:
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
 
-      # Bouwen op Java 8, scannen via de Sonar-tool
+      # Voert de tests uit en maakt de rapporten aan
       - name: Build and analyze
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn -B clean verify jacoco:report org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          mvn license:format
+          mvn -B jacoco:prepare-agent clean verify jacoco:report org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=OpenMRS13_openmrs-module-webservices.rest \
-            -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml \
-            -Dsonar.qualitygate.wait=false
+            -Dsonar.coverage.jacoco.xmlReportPaths=**/target/site/jacoco/jacoco.xml \
+            -Dsonar.coverage.exclusions=**/*
         working-directory: openmrs-module-webservices.rest
 
+      # HIER IS DE UPLOAD: De ** zorgt dat hij diep in de submappen zoekt naar de rapporten.
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
         with:
           name: code-coverage-report
-          path: openmrs-module-webservices.rest/target/site/jacoco/
+          path: openmrs-module-webservices.rest/**/target/site/jacoco/
 
   # Bestaande SAST Job
   sast:
@@ -93,8 +97,11 @@ jobs:
         with:
           languages: java
 
+      # Eerst licenties fixen, dan pas packagen!
       - name: Build with Maven
-        run: mvn -B package --no-transfer-progress
+        run: |
+          mvn license:format
+          mvn -B package --no-transfer-progress
         working-directory: openmrs-module-webservices.rest
 
       - name: Perform CodeQL Analysis
@@ -110,7 +117,7 @@ jobs:
         with:
           fail-on-severity: high
 
-  # Gecorrigeerde SBOM Job
+  # Bestaande SBOM Job
   sbom:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -124,8 +131,11 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
+      # Eerst licenties fixen, dan pas packagen!
       - name: Build project
-        run: mvn -B package --no-transfer-progress
+        run: |
+          mvn license:format
+          mvn -B package --no-transfer-progress
         working-directory: openmrs-module-webservices.rest
 
       - name: Generate SBOM
@@ -134,23 +144,12 @@ jobs:
           format: cyclonedx-json
           output-file: sbom.cyclonedx.json
           path: openmrs-module-webservices.rest
-      
-      # We koppelen nu exact de invoer aan het juiste bestand dat hierboven is gemaakt!
-      - name: Convert SBOM JSON to Readable HTML
-        run: |
-          curl -Lo cyclonedx https://github.com/CycloneDX/cyclonedx-cli/releases/download/v0.27.1/cyclonedx-linux-x64
-          chmod +x cyclonedx
-          
-          ./cyclonedx convert \
-            --input-file sbom.cyclonedx.json \
-            --output-file sbom-dashboard.html \
-            --output-format html
 
-      - name: Upload SBOM Artifact
+      - name: Upload SBOM as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sbom-dashboard-report
-          path: sbom-dashboard.html
+          name: sbom
+          path: sbom.cyclonedx.json
 
   # Deploy naar Testomgeving Job
   deploy_test:
@@ -167,8 +166,11 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
+      # Eerst licenties fixen, dan pas packagen!
       - name: Build project
-        run: mvn clean package
+        run: |
+          mvn license:format
+          mvn clean package
         working-directory: openmrs-module-webservices.rest
 
       - name: Deploy naar Test server
@@ -190,8 +192,11 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
+      # Eerst licenties fixen, dan pas packagen!
       - name: Build project
-        run: mvn clean package
+        run: |
+          mvn license:format
+          mvn clean package
         working-directory: openmrs-module-webservices.rest
 
       - name: Deploy naar Productie server

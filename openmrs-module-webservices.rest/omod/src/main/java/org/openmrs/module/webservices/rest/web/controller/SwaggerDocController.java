@@ -12,6 +12,7 @@ package org.openmrs.module.webservices.rest.web.controller;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.util.HtmlUtils;
 
 @Controller("webservices.rest.SwaggerDocController")
 @RequestMapping("/module/webservices/rest/apiDocs")
@@ -24,7 +25,8 @@ public class SwaggerDocController {
 	@RequestMapping(value = "/debug", method = RequestMethod.GET)
 	@org.springframework.web.bind.annotation.ResponseBody
 	public String debug(@org.springframework.web.bind.annotation.RequestParam("tag") String tag) {
-		return "<h1>Debugging Tag: " + tag + "</h1>";
+		return "<h1>Debugging Tag: " + HtmlUtils.htmlEscape(tag) + "</h1>";
 	}
 	
 }
+

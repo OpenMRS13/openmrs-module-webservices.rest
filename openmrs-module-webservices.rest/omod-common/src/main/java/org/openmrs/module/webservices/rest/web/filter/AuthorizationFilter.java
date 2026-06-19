@@ -24,6 +24,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.webservices.rest.web.RestAuditLog;
 import org.openmrs.module.webservices.rest.web.RestConstants;
 import org.openmrs.module.webservices.rest.web.RestUtil;
 import org.slf4j.Logger;
@@ -68,6 +69,7 @@ public class AuthorizationFilter implements Filter {
 		// check the IP address first.  If its not valid, return a 403
 		if (!RestUtil.isIpAllowed(request.getRemoteAddr())) {
 			// the ip address is not valid, set a 403 http error code
+			RestAuditLog.accessDenied("ip-not-allowed", request.getRemoteAddr());
 			HttpServletResponse httpresponse = (HttpServletResponse) response;
 			httpresponse.sendError(HttpServletResponse.SC_FORBIDDEN,
 			    "IP address '" + request.getRemoteAddr() + "' is not authorized");
@@ -87,30 +89,36 @@ public class AuthorizationFilter implements Filter {
 				if (basicAuth != null) {
 					// check that header is in format "Basic ${base64encode(username + ":" + password)}"
 					if (basicAuth.startsWith("Basic")) {
+						String attemptedUsername = null;
 						try {
 							// remove the leading "Basic "
 							basicAuth = basicAuth.substring(6);
 							if (StringUtils.isBlank(basicAuth)) {
+								RestAuditLog.authFailure(null, request.getRemoteAddr());
 								HttpServletResponse httpResponse = (HttpServletResponse) response;
 								httpResponse.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid credentials provided");
 								return;
 							}
-							
+
 							String decoded = new String(Base64.decodeBase64(basicAuth), Charset.forName("UTF-8"));
 							if (StringUtils.isBlank(decoded) || !decoded.contains(":")) {
+								RestAuditLog.authFailure(null, request.getRemoteAddr());
 								HttpServletResponse httpResponse = (HttpServletResponse) response;
 								httpResponse.sendError(HttpServletResponse.SC_BAD_REQUEST, "Invalid credentials provided");
 								return;
 							}
-							
+
 							String[] userAndPass = decoded.split(":");
+							attemptedUsername = userAndPass[0];
 							Context.authenticate(userAndPass[0], userAndPass[1]);
 							log.debug("authenticated [{}]", userAndPass[0]);
+							RestAuditLog.authSuccess(attemptedUsername, request.getRemoteAddr());
 						}
 						catch (Exception ex) {
 							// This filter never stops execution. If the user failed to
 							// authenticate, that will be caught later.
 							log.debug("authentication exception ", ex);
+							RestAuditLog.authFailure(attemptedUsername, request.getRemoteAddr());
 						}
 					}
 				}
