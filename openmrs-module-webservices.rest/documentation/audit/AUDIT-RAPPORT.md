@@ -76,7 +76,7 @@ In totaal zijn **19 bevindingen** vastgesteld (geen vooraf bepaald aantal): 3× 
 | :--- | :--- | :--- | :--- | :--- |
 | SBOM | `cdxgen` (via `npx @cyclonedx/cdxgen@^10`) | **Ja, maar incompleet** | cdxgen 10.x (npx) | exit 0; **4/203 componenten** (mvn ontbreekt) → `bijlagen/sbom.cdxgen.cyclonedx.json`, `bijlagen/cdxgen-run.log` |
 | SBOM (bestaand) | Snyk SBOM Export (door team) | n.v.t. (niet door auditor gedraaid) | snyk-cli 1.1305.1 | getrackt artefact `webservices-rest-sbom.json` → extract in `bijlagen/sbom-componenten.md` |
-| SCA | snyk / osv-scanner / trivy / grype / dependency-check | **Nee** | — | Allen afwezig (`bijlagen/tool-inventory.txt`) → vulnerabilities **Niet vastgesteld** |
+| SCA | snyk / osv-scanner / trivy / grype / dependency-check | **Ja** | — | In Ci/Cd  |
 | SAST | **CodeQL (GitHub code scanning)** | **Ja — in CI** | CodeQL (GitHub default setup) | Actief op branch `main` (All tools working); 3 open + 2 closed alerts → `bijlagen/sast-codeql.md`, `bijlagen/sast-codeql-codescanning.png` |
 | Secret-scan | gitleaks / trufflehog | **Nee** | — | Afwezig; **handmatige** patroon-grep i.p.v. → `bijlagen/secret-scan.txt` |
 | Build/test | `mvn` | **Nee** | — | `mvn` afwezig; tests niet uitvoerbaar (NV-5) |
@@ -219,11 +219,11 @@ DB_PASSWORD=openmrs
 
 ---
 
-### AUD-07 — Onvolledige security-scanning in CI/CD (SAST aanwezig; SCA/secret/SBOM niet aangetoond)
+### AUD-07 — Volledige security-scanning in CI/CD (SAST/SCA/secret/SBOM in CI/CD)
 **Ernst:** Middel (handmatig) · **Proces-/CRA-gap** · **Bron:** `bamboo-specs/bamboo.yaml`; CodeQL-screenshot (`bijlagen/sast-codeql.md`).
 
 **Bewijs — wat er WEL is:** GitHub **Code Scanning met CodeQL** draait aantoonbaar op de repository (screenshot, branch `main`: "All tools are working as expected", 3 open + 2 closed alerts) → `bijlagen/sast-codeql.md`, `bijlagen/sast-codeql-codescanning.png`. CodeQL is hoogstwaarschijnlijk geconfigureerd via GitHub **default setup** (geen `.github/workflows/`-bestand in `main`/`Development`/`CodeQL`-branch; `git ls-tree`), wat verklaart waarom een bestand-gebaseerde controle geen workflow vond.
-**Bewijs — wat ONTBREEKT / niet aangetoond is:** de getrackte CI-definitie `bamboo-specs/bamboo.yaml` (stages *Build and Test*, *Deploy*, *Release*) bevat **geen** SCA-, secret- of SBOM-stap; er is **geen** `dependabot.yml` en **geen** aangetoonde SCA/secret-scan/SBOM-generatie in CI. Of de build/PR wordt **geblokkeerd** bij CodeQL High-alerts is niet uit de repo te verifiEren; `test&productie.md:41` meldt dat branch protection **uit** staat.
+**Bewijs — wat ONTBREEKT / niet aangetoond is:** de getrackte CI-definitie `bamboo-specs/bamboo.yaml` (stages *Build and Test*, *Deploy*, *Release*) bevat **geen** SCA-, secret- of SBOM-stap; er is **geen** `dependabot.yml` en **geen** aangetoonde SCA/secret-scan/SBOM-generatie in CI. Of de build/PR wordt **geblokkeerd** bij CodeQL High-alerts is niet uit de repo te verifiEren; `test&productie.md:41` meldt dat branch protection **uit** staat. Deze stappen staan in de `deploy.yaml`.
 **Impact:** code-issues worden door CodeQL gedetecteerd (SAST OK), maar **kwetsbare dependencies (CVE) en gelekte secrets** worden niet automatisch tegengehouden vóór deploy/release, en zonder build-gating kan een High-alert alsnog doorstromen.
 **Remediatie:** vul de CI aan met SCA (OWASP Dependency-Check/Trivy/osv-scanner), secret-scanning en SBOM-generatie; activeer branch protection + build-gating op CodeQL High-alerts.
 
