@@ -12,6 +12,7 @@ package org.openmrs.module.webservices.rest.web.v1_0.controller.openmrs2_0;
 import org.apache.commons.lang3.StringUtils;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.webservices.rest.SimpleObject;
+import org.openmrs.module.webservices.rest.web.RestAuditLog;
 import org.openmrs.module.webservices.rest.web.RestConstants;
 import org.openmrs.module.webservices.rest.web.RestUtil;
 import org.openmrs.module.webservices.rest.web.api.RestService;
@@ -84,6 +85,8 @@ public class SearchIndexController2_0 extends BaseRestController {
 				Context.updateSearchIndexForObject(object);
 			}
 		}
+		// Audit (NEN 7510 8.15): administrative action — record who rebuilt the search index and for which resource.
+		RestAuditLog.write("update-search-index", resourceName, uuid);
 	}
-	
+
 }
