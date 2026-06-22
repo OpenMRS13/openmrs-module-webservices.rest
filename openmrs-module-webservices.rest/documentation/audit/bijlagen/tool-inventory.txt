@@ -1,0 +1,33 @@
+TOOL-INVENTARIS & UITVOERSTATUS — security/SCA/SAST/SBOM tooling
+Omgeving: Windows 11, MINGW64_NT-10.0-26200. Datum: 2026-06-19
+Commit: 19d1b21a09019d2defbdcc20ca2ef961f3ad117f
+============================================================
+TOOL                   STATUS     PAD/VERSIE
+mvn                    AFWEZIG    -
+java                   AANWEZIG   /c/Program Files/Eclipse Adoptium/jdk-21.0.3.9-hotspot/bin/java
+node                   AANWEZIG   /c/Users/Ralph/AppData/Roaming/JetBrains/WebStorm2025.2/node/versions/22.20.0/node
+npm                    AANWEZIG   /c/Users/Ralph/AppData/Roaming/JetBrains/WebStorm2025.2/node/versions/22.20.0/npm
+npx                    AANWEZIG   /c/Users/Ralph/AppData/Roaming/JetBrains/WebStorm2025.2/node/versions/22.20.0/npx
+python                 AFWEZIG    -
+pip                    AFWEZIG    -
+snyk                   AFWEZIG    -
+syft                   AFWEZIG    -
+cdxgen                 AFWEZIG    -
+osv-scanner            AFWEZIG    -
+semgrep                AFWEZIG    -
+gitleaks               AFWEZIG    -
+trivy                  AFWEZIG    -
+grype                  AFWEZIG    -
+bandit                 AFWEZIG    -
+gosec                  AFWEZIG    -
+codeql                 AFWEZIG    -
+trufflehog             AFWEZIG    -
+dependency-check       AFWEZIG    -
+sonar-scanner          AFWEZIG    -
+------------------------------------------------------------
+Versies van aanwezige relevante tools:
+java   : openjdk version "21.0.3" 2024-04-16 LTS
+node   : v22.20.0
+npm    : 10.9.3
+git    : git version 2.44.0.windows.1
+============================================================

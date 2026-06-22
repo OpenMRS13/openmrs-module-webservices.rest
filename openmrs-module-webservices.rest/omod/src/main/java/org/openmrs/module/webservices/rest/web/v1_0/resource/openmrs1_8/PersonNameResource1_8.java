@@ -29,6 +29,7 @@ import org.openmrs.module.webservices.rest.web.representation.Representation;
 import org.openmrs.module.webservices.rest.web.resource.impl.DelegatingResourceDescription;
 import org.openmrs.module.webservices.rest.web.resource.impl.DelegatingSubResource;
 import org.openmrs.module.webservices.rest.web.resource.impl.NeedsPaging;
+import org.openmrs.module.webservices.rest.web.response.IllegalPropertyException;
 import org.openmrs.module.webservices.rest.web.response.ResponseException;
 
 import java.lang.reflect.Method;
@@ -216,7 +217,11 @@ public class PersonNameResource1_8 extends DelegatingSubResource<PersonName, Per
 	 */
 	@Override
 	public PersonName save(PersonName newName) {
-		// make sure that the name has actually been added to the person
+		validateNameField(newName.getGivenName());
+		validateNameField(newName.getMiddleName());
+		validateNameField(newName.getFamilyName());
+		validateNameField(newName.getFamilyName2());
+
 		boolean needToAdd = true;
 		for (PersonName pn : newName.getPerson().getNames()) {
 			if (pn.equals(newName)) {
@@ -228,6 +233,12 @@ public class PersonNameResource1_8 extends DelegatingSubResource<PersonName, Per
 			newName.getPerson().addName(newName);
 		Context.getPersonService().savePerson(newName.getPerson());
 		return newName;
+	}
+
+	private void validateNameField(String value) {
+		if (value != null && value.matches(".*[<>\"'&].*")) {
+			throw new IllegalPropertyException("Naamvelden mogen geen HTML-speciale tekens bevatten (<, >, \", ', &)");
+		}
 	}
 	
 	/**

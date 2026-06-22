@@ -18,6 +18,7 @@ import org.openmrs.api.APIException;
 import org.openmrs.api.UserService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.webservices.rest.SimpleObject;
+import org.openmrs.module.webservices.rest.web.RestAuditLog;
 import org.openmrs.module.webservices.rest.web.RestConstants;
 import org.openmrs.module.webservices.rest.web.RestUtil;
 import org.openmrs.module.webservices.rest.web.v1_0.controller.BaseRestController;
@@ -54,6 +55,8 @@ public class ChangePasswordController1_8 extends BaseRestController {
 		try {
 			Context.addProxyPrivilege(PrivilegeConstants.GET_GLOBAL_PROPERTIES);
 			userService.changePassword(oldPassword, newPassword);
+			// Audit (NEN 7510 8.15): record the credential change; the password itself is never logged (8.11).
+			RestAuditLog.write("change-own-password", null, null);
 		}
 		catch (APIException ex) {
 			// this happens if they give the wrong oldPassword
@@ -81,6 +84,9 @@ public class ChangePasswordController1_8 extends BaseRestController {
 			throw new NullPointerException();
 		} else {
 			userService.changePassword(user, newPassword);
+			// Audit (NEN 7510 8.15): changing another user's password is sensitive — log actor + target user
+			// (by uuid) at WARN. The password itself is never logged (8.11).
+			RestAuditLog.sensitive("change-others-password", "user", user.getUuid());
 		}
 	}
 	
