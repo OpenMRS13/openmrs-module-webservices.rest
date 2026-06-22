@@ -20,7 +20,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  # SonarCloud Analysis Job
+  # SonarCloud Analysis Job 
   sonarcloud:
     name: Code Coverage & Quality Analysis
     runs-on: ubuntu-latest
